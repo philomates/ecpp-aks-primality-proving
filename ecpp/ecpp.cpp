@@ -7,7 +7,7 @@
  * History
  * @date 20111029 - Initial release
  */
- 
+
 #include <time.h>
 #include <iostream>
 #include <stdint.h>
@@ -58,17 +58,17 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
   bool anResult = false; // Was a valid X found?
   mpz_t anMod4;
   mpz_t anMod8;
-  
+
   // Initialize some temporary variables
   mpz_init(anMod4);
   mpz_init(anMod8);
-  
+
   // Compute anMod4 first
   mpz_mod_ui(anMod4, theP, 4);
-  
+
   // Compute anMod8 next
   mpz_mod_ui(anMod8, theP, 8);
-  
+
   // Test the simplest cases p === 3, 7 (mod 8)
   if(mpz_cmp_ui(anMod4,3) == 0)
   {
@@ -76,16 +76,16 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
 
     // Initialize and set the exponent
     mpz_init_set(anExp, theP);
-    
+
     // Add 1 to the exponent
     mpz_add_ui(anExp, anExp, 1);
 
     // Divide the exponent by 4
-    mpz_div_ui(anExp, anExp, 4); 
+    mpz_div_ui(anExp, anExp, 4);
 
     // Compute x = a^(p+1)/4 mod p
     mpz_powm(*theX, theA, anExp, theP);
-    
+
     // Clear the exponent
     mpz_clear(anExp);
 
@@ -97,21 +97,21 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
   {
     mpz_t anExp1;  // The exponent (p-1)/4
     mpz_t anModP;  // Temporary value for second test
-    
+
     // Initialize and set the exponent
     mpz_init_set(anExp1, theP);
     mpz_init(anModP);
-    
+
     // Subtract from the exponent 1
     mpz_sub_ui(anExp1, anExp1, 1);
-    
+
     // Divide the exponent by 4
     mpz_tdiv_q_ui(anExp1, anExp1, 4);
 
     // Compute x = a^(p-1)/4 mod p
     mpz_powm(anModP, theA, anExp1, theP);
     mpz_mod(anModP, anModP, theP);
-    
+
     // See if the anModP result is 1
     if(mpz_cmp_ui(anModP,1) == 0)
     {
@@ -122,7 +122,7 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
 
       // Add to the exponent 3
       mpz_add_ui(anExp2, anExp2, 3);
-      
+
       // Divide the exponent by 8
       mpz_tdiv_q_ui(anExp2, anExp2, 8);
 
@@ -136,11 +136,11 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
     {
       mpz_t anExp2;  // The exponent (p-5)/8
       mpz_t anBase;  // The base a*4
-      
+
       // Initialize and set the exponent
       mpz_init_set(anExp2, theP);
       mpz_init(anBase);
-      
+
       // Subtract from the exponent 5
       mpz_sub_ui(anExp2, anExp2, 5);
 
@@ -149,20 +149,20 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
 
       // Compute 4*a as the base
       mpz_mul_ui(anBase, theA, 4);
-      
+
       // Compute x = 4*a^(p-5)/8 mod p
       mpz_powm(*theX, anBase, anExp2, theP);
-      
+
       // Clear our values we don't need anymore
       mpz_clear(anBase);
       mpz_clear(anExp2);
-      
+
       // Multiply the result by 2*a*x mod p
       mpz_mul_ui(*theX, *theX, 2);
       mpz_mul(*theX, *theX, theA);
       mpz_mod(*theX, *theX, theP);
     }
-    
+
     // Clear our values we don't need anymore
     mpz_clear(anModP);
     mpz_clear(anExp1);
@@ -176,18 +176,18 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
     // TODO: Implement hardest case!
     cout << "TODO: SquareMod needs case 2 of algorithm 2.3.8" << endl;
   }
-  
+
   // Clear our temporary variables before returning
   mpz_clear(anMod8);
   mpz_clear(anMod4);
-  
+
   // If no valid result was found, then set theX to 0
   if(false == anResult)
   {
     // Is this necessary?
     mpz_set_ui(*theX, 0);
   }
-  
+
   // Return the result found if any
   return anResult;
 }
@@ -205,17 +205,17 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
   mpz_t b;  // Euclid chain value b
   mpz_t c;  // Euclid chain value c
   mpz_t t;  // Temporary value for final report
-  
+
   // Initalize square root value
   mpz_init(x0);
   mpz_init(a);
   mpz_init(b);
   mpz_init(c);
   mpz_init(t);
-  
+
   // Obtain the initial square root value for x0
   bool anFound = SquareMod(&x0, theD, theP); // uses 2.3.8 algorithm
-  
+
   // If x0 was found, then ensure x0^2 !=== D (mod 2)
   if(anFound)
   {
@@ -229,7 +229,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     // Compute x0 mod 2 and D mod 2
     mpz_mod_ui(dt, theD, 2);
     mpz_mod_ui(xt, x0, 2);
-    
+
     // If x0^2 !=== D (mod 2) then adjust x0
     if(dt != xt)
     {
@@ -243,7 +243,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     // Warn the user and proceed anyway with x0 = 0
     cout << "x0 not found!?" << endl;
   }
-  
+
   // Initialize Euclid chain
   // Set a = 2p
   mpz_set(a, theP);
@@ -255,7 +255,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
   // Set c = lower_bound(2*sqrt(p)) (see 9.2.11 algorithm)
   mpz_sqrt(c, theP);
   mpz_mul_ui(c, c, 2);
-  
+
   // Euclid chain
   while(mpz_cmp(b, c) > 0)
   {
@@ -276,7 +276,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     // Clear our temporary result for a mod b now
     mpz_clear(anModB);
   } // while(b > c)
-  
+
   // Final report/check
   // Compute a = b^2 to use later
   mpz_pow_ui(a, b, 2);
@@ -289,7 +289,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
 
   // Compute a = abs(D)
   mpz_abs(a, theD);
-  
+
   // Compute c = t / a
   mpz_tdiv_q(c, t, a);
 
@@ -301,10 +301,10 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
   {
     // Set theU value for our solution
     mpz_set(*theU, b);
-    
+
     // Set theV value for our solution
     mpz_sqrt(*theV, c);
-    
+
     // We found a solution
     anResult = true;
   }
@@ -315,7 +315,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
   mpz_clear(b);
   mpz_clear(a);
   mpz_clear(x0);
-  
+
   // Return anResult which is true if solution was found
   return anResult;
 }
@@ -333,7 +333,7 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_t b;  // Random value b for curve E
   mpz_t g;  // The factor found if any
   mpz_t t;  // Temporary value for computing b
-  
+
   // Initialize our values
   mpz_init(P.x);
   mpz_init(P.y);
@@ -341,7 +341,7 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_init(b);
   mpz_init(g);
   mpz_init(t);
-  
+
   // Loop through b1 iterations trying to find a non-trivial factor of theN
   do {
     // Pick a random x from 0 to N-1
@@ -350,14 +350,14 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
     mpz_urandomm(P.y, gRandomState, theN);
     // Pick a random a from 0 to N-1
     mpz_urandomm(a, gRandomState, theN);
-    
+
     // Compute b = (y^2 - x^3 - ax) mod n
     mpz_pow_ui(t, P.x, 3); // x^3
     mpz_submul(t, a, P.x); // x^3 - ax
     mpz_pow_ui(b, P.y, 2); // y^2
     mpz_sub(b, b, t);      // (y^2) - (x^3 - ax)
     mpz_mod(b, b, theN);   // (y^2 - x^3 - ax) mod n
-    
+
     // Compute 4a^3 + 27b^2
     mpz_pow_ui(a, a, 3);  // a^3
     mpz_mul_ui(a, a, 4);  // 4*(a^3)
@@ -371,13 +371,13 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
     // If G is greater than 1 but not equal to n then we're done
     else if(mpz_cmp_ui(g, 1) > 0)
     {
-      cout << "g=" << g << endl;
+      //cout << "g=" << g << endl;
       break;
     }
   } while(true);
-  
+
   // TODO: Finish LenstraECM implementation!
-  
+
   // Clear our values used above
   mpz_clear(t);
   mpz_clear(g);
@@ -397,11 +397,11 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   bool anResult = true; // A suitable theQ was found
   unsigned long count = 1000000; // Number of Prime numbers to remove from theQ
   mpz_t prime;  // Prime numbers to remove from theQ
-  
+
   // If theM is prime or probably prime then stop now
   if(mpz_probab_prime_p(theM, 10))
     return false;
-  
+
   // Starting with theM value provided, try to reduce it to
   // some form of m = k*q by finding k factors that can be
   // removed from m leaving q as a possible prime factor
@@ -410,7 +410,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   // TODO: Replace the following with LenstraECM implementation
   // Initialize our first prime number to 2
   mpz_init_set_ui(prime, 2);
-  
+
   // Loop through each prime number from 2 up and remove each
   // of these from theQ
   do {
@@ -419,7 +419,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
 
     // Find the next prime to try to remove from theQ
     mpz_nextprime(prime, prime);
-    
+
     // Is theQ prime now? then exit our loop
     if(mpz_probab_prime_p(theM, 10))
       break;
@@ -428,10 +428,10 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   // Clear our prime value used above
   mpz_clear(prime);
 
-  // Make sure theQ is still larger than theT 
+  // Make sure theQ is still larger than theT
   if(mpz_cmp(*theQ, theT) < 0)
     return false; // theQ is smaller than theT
-  
+
   // One more final check, m != q
   if(mpz_cmp(*theQ, theM) == 0)
     return false;
@@ -452,7 +452,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
   mpz_t m0;  // m0 = n + 1
   mpz_t m1;  // m1 = m0 + u
   mpz_t m2;  // m2 = m0 - u
-  
+
   // Initialize and set our temporary value t to theN
   mpz_init(t);
   mpz_init_set(m0, theN);
@@ -461,27 +461,27 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
 
   // Add 1 to m0
   mpz_add_ui(m0, m0, 1);
-  
+
   // Now take the double square root of theN and store in T
   mpz_sqrt(t, theN);
   mpz_sqrt(t, t);
-  
+
   // Now add one to the result
   mpz_add_ui(t, t, 1);
-  
+
   // Now square the result
   mpz_pow_ui(t, t, 2);
-  
+
   // Test initial special cases of m0 = n + 1 +/- u
   mpz_add(m1, m0, theU);  // Add u to m0 for m1
   mpz_sub(m2, m0, theU);  // Subtract u from m0 for m2
-  
+
   if(true == FindFactor(theQ, m1, t))
   {
     // Set m = m1
     mpz_set(*theM, m1);
 
-    // Curve order m and factor q found          
+    // Curve order m and factor q found
     anResult = true;
   }
   else if(true == FindFactor(theQ, m2, t))
@@ -489,7 +489,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
     // Set m = m2
     mpz_set(*theM, m2);
 
-    // Curve order m and factor q found          
+    // Curve order m and factor q found
     anResult = true;
   }
   else if(mpz_cmp_si(theD, -4) >= -4)
@@ -504,7 +504,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
       // Set m = m1
       mpz_set(*theM, m1);
 
-      // Curve order m and factor q found          
+      // Curve order m and factor q found
       anResult = true;
     }
     else if(true == FindFactor(theQ, m2, t))
@@ -512,7 +512,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
       // Set m = m2
       mpz_set(*theM, m2);
 
-      // Curve order m and factor q found          
+      // Curve order m and factor q found
       anResult = true;
     }
     else if(mpz_cmp_si(theD, -3) == 0)
@@ -525,11 +525,11 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
       // Prepare factor m3 = (u + 3v) / 2
       mpz_addmul_ui(m3, theV, 3);
       mpz_tdiv_q_ui(m3, m3, 2);
-      
+
       // Prepare factor m4 = (u - 3v) / 2
       mpz_submul_ui(m4, theV, 3);
       mpz_tdiv_q_ui(m4, m4, 2);
-      
+
       // Test special case m1 = m0 + m3 and m2 = m0 + m4
       mpz_add(m1, m0, m3);
       mpz_add(m2, m0, m4);
@@ -538,7 +538,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
         // Set m = m1
         mpz_set(*theM, m1);
 
-        // Curve order m and factor q found          
+        // Curve order m and factor q found
         anResult = true;
       }
       else if(true == FindFactor(theQ, m2, t))
@@ -546,7 +546,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
         // Set m = m2
         mpz_set(*theM, m2);
 
-        // Curve order m and factor q found          
+        // Curve order m and factor q found
         anResult = true;
       }
       else
@@ -559,7 +559,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
           // Set m = m1
           mpz_set(*theM, m1);
 
-          // Curve order m and factor q found          
+          // Curve order m and factor q found
           anResult = true;
         }
         else if(true == FindFactor(theQ, m2, t))
@@ -567,7 +567,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
           // Set m = m2
           mpz_set(*theM, m2);
 
-          // Curve order m and factor q found          
+          // Curve order m and factor q found
           anResult = true;
         }
         else
@@ -576,7 +576,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
           cout << "FactorOrder failed!" << endl;
         }
       }
-      
+
       // Clear our values used above
       mpz_clear(m4);
       mpz_clear(m3);
@@ -590,7 +590,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
   mpz_clear(t);
 
   // Return anResult found if any
-  return anResult;  
+  return anResult;
 }
 
 /**
@@ -600,7 +600,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
 bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
 {
   bool anResult = true; // True if curve parameters a and b were found
-  
+
   // Special case for D=-3 and D=-4
   if(mpz_cmp_si(theD, -3) == 0)
   {
@@ -623,7 +623,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
     cout << "TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10" << endl;
     anResult = false;
   }
-  
+
   // Return true if we found our curve parameters a and b above
   return anResult;
 }
@@ -631,7 +631,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
 /**
  * EvaluatePoint will compute the multiple U = [m/q]P. Based on these results
  * N will be either composite or Q << N will need to be proven prime to prove
- * that N is prime. 
+ * that N is prime.
  */
 void EvaluatePoint(mpz_t& theM, mpz_t& theQ, mpz_t& theN)
 {
@@ -685,13 +685,13 @@ bool AtkinMorain(mpz_t& theN)
   {
     // Increment D - note first pass will skip dummy 0 entry in anD array above
     anIndexD++;
-    
+
     // Find Jacobi(D,N) that equals 1
     if(1 != mpz_jacobi(gDiscriminants[anIndexD],theN))
       continue; // Jacobi returned -1 or 0
-    
-    cout << "d=" << gDiscriminants[anIndexD] << endl;
-    
+
+    //cout << "d=" << gDiscriminants[anIndexD] << endl;
+
     // Try to retrieve u and v using modified Cornacchia algorithm (2.3.13)
     if(false == ModifiedCornacchia(&u, &v, theN, gDiscriminants[anIndexD]))
     {
@@ -699,7 +699,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      cout << "u=" << u << " v=" << v << endl;
+      //cout << "u=" << u << " v=" << v << endl;
     }
 
     // Step 2: FactorOrders attempts to find a possible order m that factors
@@ -712,9 +712,9 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      cout << "m=" << m << " q=" << q << endl;
+      //cout << "m=" << m << " q=" << q << endl;
     }
-    
+
     // Step 3: ObtainCurveParameters will attempt to obtain the curve
     // parameters a and b for an elliptic curve that would have order m if n
     // is indeed prime.
@@ -724,7 +724,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      cout << "a=" << a << " b=" << b << endl;
+      //cout << "a=" << a << " b=" << b << endl;
 
       // D, m, q, a and b were all found
       anFound = true;
@@ -752,33 +752,33 @@ bool AtkinMorain(mpz_t& theN)
 
         // Compute Q = x^2
         mpz_mul(Q, P.x, P.x);
-        
+
         // Compute Q = Q*x
         mpz_mul(Q, Q, P.x);
-        
+
         // Compute Q = x^3
         //mpz_powm_ui(Q, P.x, 3, theN);
-        
-        cout << "Q=" << Q << endl;
+
+        //cout << "Q=" << Q << endl;
 
         // Compute Q = Q + ax
         mpz_addmul(Q, a, P.x);
-        
+
         // Compute Q = Q + b
         mpz_add(Q, Q, b);
-        
+
         // Compute Q = Q mod n
         mpz_mod(Q, Q, theN);
-        
-        cout << "P.x=" << P.x << " Q=" << Q << endl;
+
+        //cout << "P.x=" << P.x << " Q=" << Q << endl;
         break;
       } while(-1 == mpz_jacobi(Q,theN));
-    
+
       // Step 4b: Apply Algorithm 2.3.8 or 2.3.9 (with a = Q and p = n) to find
       // an integer y that would satisfy y2 = Q (mod n) if n were prime
       anFound = SquareMod(&P.y, Q, theN);
-      cout << "P.x=" << P.x << " P.y=" << P.y << " Q=" << Q;
-      cout << " found=" << anFound << endl;
+      //cout << "P.x=" << P.x << " P.y=" << P.y << " Q=" << Q;
+      //cout << " found=" << anFound << endl;
       break;
     } while(false == anFound);
 
@@ -790,10 +790,10 @@ bool AtkinMorain(mpz_t& theN)
 
       // N is composite
       anResult = false;
-      
+
       // We are done
       anDone = true;
-      
+
       // Exit this loop
       break;
     }
@@ -804,7 +804,7 @@ bool AtkinMorain(mpz_t& theN)
 
     // Step 5: EvaluatePoint will compute the multiple U = [m/q]P. Based on
     // these results N will be either composite or Q << N will need to be
-    // proven prime to prove that N is prime. 
+    // proven prime to prove that N is prime.
     //anDone = EvaluatePoint(anResult, x, y);
     break;
   }
@@ -835,23 +835,23 @@ int main(int argc, char* argv[])
 
   // Initialize our random generator first
   gmp_randinit_default(gRandomState);
-  
+
   // Seed our random generator using the clock
   gmp_randseed_ui(gRandomState, time(0));
-  
+
   InitDiscriminants();
-  
+
   mpz_init(anNumber);
-      
+
   // Get the number to test
   //cin >> anNumber;
-  
+
   // Try test number of 2^89 - 1 which is prime
   mpz_ui_pow_ui(anNumber, 2, 89);
   mpz_sub_ui(anNumber, anNumber, 1);
-  
+
   // Show the number to be tested
-  cout << "N=" << anNumber << endl;
+  //cout << "N=" << anNumber << endl;
 
   if(false == AtkinMorain(anNumber))
   {
@@ -864,7 +864,7 @@ int main(int argc, char* argv[])
 
   // Clear the number before exiting the program
   mpz_clear(anNumber);
-  
+
   // Return 0
   return 0;
 }
