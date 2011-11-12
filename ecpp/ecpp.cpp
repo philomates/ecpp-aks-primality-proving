@@ -9,11 +9,9 @@
  */
 
 #include <time.h>
-#include <iostream>
+#include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
-
-using namespace std;
 
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
@@ -44,7 +42,7 @@ void InitDiscriminants(void)
     mpz_init_set_si(gDiscriminants[i], anD[i]);
 
     // Display discriminants available
-    //cout << i << "=" << gDiscriminants[i] << endl;
+    //gmp_printf("%d=%Zd\n", i, gDiscriminants[i]);
   }
 }
 
@@ -174,7 +172,7 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
   else
   {
     // TODO: Implement hardest case!
-    cout << "TODO: SquareMod needs case 2 of algorithm 2.3.8" << endl;
+    printf("TODO: SquareMod needs case 2 of algorithm 2.3.8\n");
   }
 
   // Clear our temporary variables before returning
@@ -241,7 +239,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     mpz_clear(xt);
   } else {
     // Warn the user and proceed anyway with x0 = 0
-    cout << "x0 not found!?" << endl;
+    printf("x0 not found!?\n");
   }
 
   // Initialize Euclid chain
@@ -371,7 +369,7 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
     // If G is greater than 1 but not equal to n then we're done
     else if(mpz_cmp_ui(g, 1) > 0)
     {
-      //cout << "g=" << g << endl;
+      gmp_printf("g=%Zd\n", g);
       break;
     }
   } while(true);
@@ -573,7 +571,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
         else
         {
           // nothing was found, anResult should already be false
-          cout << "FactorOrder failed!" << endl;
+          //printf("FactorOrder failed!\n");
         }
       }
 
@@ -620,7 +618,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
   {
     // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
     //                 algorithm 7.5.10 (Hilbert lookup table)
-    cout << "TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10" << endl;
+    printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
     anResult = false;
   }
 
@@ -629,12 +627,169 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
 }
 
 /**
- * EvaluatePoint will compute the multiple U = [m/q]P. Based on these results
- * N will be either composite or Q << N will need to be proven prime to prove
- * that N is prime.
+ * Add implements the Elliptic add method described by Algorithm 7.2.2. This
+ * will return true if an illegal inversion occurred and will not set theR
+ * unless the inversion succeeded.
  */
-void EvaluatePoint(mpz_t& theM, mpz_t& theQ, mpz_t& theN)
+bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& theN)
 {
+  bool anResult = false;  // True if illegal inversion occurred
+  mpz_t m;  // Elliptic slope value m
+  
+  // Initialize our m value first
+  mpz_init(m);
+
+  // Does P1 and P2 possibly represent inverse points?
+  if(mpz_cmp(theP1.x, theP2.x) == 0)
+  {
+    // Compute (y2 + y1) mod n
+    mpz_add(m, theP1.y, theP2.y);
+    mpz_mod(m, m, theN);
+
+    // Are we at the infinite point O? then return O
+    if(mpz_cmp_ui(m, 0) == 0)
+    {
+      // Set our return result as O
+      mpz_set_ui(theR->x, 0);
+      mpz_set_ui(theR->y, 1);
+      
+      // Clear our m value used above
+      mpz_clear(m);
+      
+      // Illegal inversion at the infinite point O
+      return true;
+    }
+  }
+  
+  // Compute (x2 - x1) portion of m = (y2-y1)(x2-x1)^-1
+  mpz_sub(m, theP2.x, theP1.x);
+  
+  // Compute inverse (x2-x1)^-1 first
+  anResult = (mpz_invert(m, m, theN) == 0);
+  
+  // Only proceed if our inversion succeeded
+  if(anResult)
+  {
+    Point R;  // Point R to return via theR
+
+    // Initialize our working point R
+    mpz_init(R.x);
+    mpz_init(R.y);
+    
+    // Compute (y2 - y1)
+    mpz_mul(R.x, theP2.y, theP1.y);
+
+    // Compute m = (y2-y1)(x2-x1)^-1
+    mpz_mul(m, R.x, m);
+    
+    // Compute R.x = m^2 - x1 - x2
+    mpz_powm_ui(R.x, m, 2, theN);
+    mpz_sub(R.x, R.x, theP1.x);
+    mpz_sub(R.x, R.x, theP2.x);
+    mpz_mod(R.x, R.x, theN);
+    
+    // Compute R.y = m(x1 - x3) - y1
+    mpz_sub(R.y, theP1.x, R.x);
+    mpz_mul(R.y, R.y, m);
+    mpz_sub(R.y, R.y, theP1.y);
+    mpz_mod(R.y, R.y, theN);
+    
+    // Set our return results now
+    mpz_set(theR->x, R.x);
+    mpz_set(theR->y, R.y);
+
+    // Clear our working point R
+    mpz_clear(R.y);
+    mpz_clear(R.x);
+  }
+  
+  // Clear our m value used above
+  mpz_clear(m);
+
+  // Return true if illegal inversion occurred
+  return anResult;
+}
+
+/**
+ * Double implements the double portion of the Elliptic add method described by
+ * Algorithm 7.2.2.
+ */
+void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
+{
+  mpz_t m;  // Elliptic slope value m
+  Point R;  // Point R to return via theR
+
+  // Initialize our values first
+  mpz_init(m);
+  mpz_init(R.x);
+  mpz_init(R.y);
+  
+  // Compute 2*P.y first
+  mpz_mul_ui(m, theP.y, 2);
+  
+  // Compute inverse (2y)^-1 first
+  mpz_invert(m, m, theN);
+  
+  // Compute (3x^2 + a)
+  mpz_mul(R.x, theP.x, theP.x);
+  mpz_mul_ui(R.x, R.x, 3);
+  mpz_add(R.x, R.x, theA);
+
+  // Compute m = (3x^2 + a)(2y)^-1
+  mpz_mul(m, R.x, m);
+  
+  // Compute R.x = m^2 - 2x
+  mpz_powm_ui(R.x, m, 2, theN);
+  mpz_submul_ui(R.x, theP.x, 2);
+  mpz_mod(R.x, R.x, theN);
+  
+  // Compute R.y = m(x1 - x3) - y1
+  mpz_sub(R.y, theP.x, R.x);
+  mpz_mul(R.y, R.y, m);
+  mpz_sub(R.y, R.y, theP.y);
+  mpz_mod(R.y, R.y, theN);
+  
+  // Set our return results now
+  mpz_set(theR->x, R.x);
+  mpz_set(theR->y, R.y);
+
+  // Clear our values used above
+  mpz_clear(R.y);
+  mpz_clear(R.x);
+  mpz_clear(m);
+}
+
+/**
+ * Multiply implements the Elliptical multiplication method described by
+ * Algorithm 7.2.4. This will return true if an illegal inversion occurred
+ * during one of the Elliptical add method calls.
+ */
+bool Multiply(struct Point* theR, mpz_t theM, struct Point& P)
+{
+  bool anResult = false;  // True if illegal inversion occurred
+
+  // If theM provided is zero, return O (point at infinity)
+  if(mpz_cmp_ui(theM, 0) == 0)
+  {
+    // Return O since theN provided was 0
+    mpz_set_ui(theR->x, 0);
+    mpz_set_ui(theR->y, 1);
+  }
+  else
+  {
+    // Loop while no illegal inversions have occurred and theM is > 0
+    while(false == anResult && mpz_cmp_ui(theM, 0) > 0)
+    {
+      if(mpz_odd_p(theM))
+      {
+        
+      }
+      else
+      {
+      }
+    }
+    // TODO: Perform the multiply using Add and Subtract methods
+  }
 }
 
 /**
@@ -657,6 +812,12 @@ bool AtkinMorain(mpz_t& theN)
   Point U;  // Point U used in step 5: EvaluatePoint
   Point V;  // Point V used in step 5: EvaluatePoint
   mpz_t t;  // Temporary variable for testing y^2 mod n != Q
+
+  // Step 0: Use Miller-Rabbin to test if theN is composite since there is no
+  // guarrentee that ECPP will successfully find a u and v in Step 1, but
+  // Miller-Rabbin guarrentees to find all composites quickly.
+  if(mpz_probab_prime_p(theN, 10) == 0)
+    return false;
 
   // Initialize m, q, u, and v values
   mpz_init(m);
@@ -690,7 +851,7 @@ bool AtkinMorain(mpz_t& theN)
     if(1 != mpz_jacobi(gDiscriminants[anIndexD],theN))
       continue; // Jacobi returned -1 or 0
 
-    //cout << "d=" << gDiscriminants[anIndexD] << endl;
+    gmp_printf("d=%Zd\n", gDiscriminants[anIndexD]);
 
     // Try to retrieve u and v using modified Cornacchia algorithm (2.3.13)
     if(false == ModifiedCornacchia(&u, &v, theN, gDiscriminants[anIndexD]))
@@ -699,7 +860,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      //cout << "u=" << u << " v=" << v << endl;
+      gmp_printf("u=%Zd v=%Zd\n", u, v);
     }
 
     // Step 2: FactorOrders attempts to find a possible order m that factors
@@ -712,7 +873,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      //cout << "m=" << m << " q=" << q << endl;
+      gmp_printf("m=%Zd q=%Zd\n", m, q);
     }
 
     // Step 3: ObtainCurveParameters will attempt to obtain the curve
@@ -724,7 +885,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      //cout << "a=" << a << " b=" << b << endl;
+      gmp_printf("a=%Zd b=%Zd\n", a, b);
 
       // D, m, q, a and b were all found
       anFound = true;
@@ -747,47 +908,30 @@ bool AtkinMorain(mpz_t& theN)
       do
       {
         // Pick a random x from 0 to N-1
-        //mpz_urandomm(P.x, gRandomState, theN);
-        mpz_set_ui(P.x, 1790128217);
-
-        // Compute Q = x^2
-        mpz_mul(Q, P.x, P.x);
-
-        // Compute Q = Q*x
-        mpz_mul(Q, Q, P.x);
+        mpz_urandomm(P.x, gRandomState, theN);
 
         // Compute Q = x^3
-        //mpz_powm_ui(Q, P.x, 3, theN);
-
-        //cout << "Q=" << Q << endl;
-
+        mpz_powm_ui(Q, P.x, 3, theN);
+        
         // Compute Q = Q + ax
         mpz_addmul(Q, a, P.x);
-
+        
         // Compute Q = Q + b
         mpz_add(Q, Q, b);
-
+        
         // Compute Q = Q mod n
         mpz_mod(Q, Q, theN);
-
-        //cout << "P.x=" << P.x << " Q=" << Q << endl;
-        break;
       } while(-1 == mpz_jacobi(Q,theN));
 
       // Step 4b: Apply Algorithm 2.3.8 or 2.3.9 (with a = Q and p = n) to find
       // an integer y that would satisfy y2 = Q (mod n) if n were prime
       anFound = SquareMod(&P.y, Q, theN);
-      //cout << "P.x=" << P.x << " P.y=" << P.y << " Q=" << Q;
-      //cout << " found=" << anFound << endl;
-      break;
     } while(false == anFound);
 
     // Step 4c: If y^2 mod n != Q then N is composite
     mpz_powm_ui(t, P.y, 2, theN);
     if(mpz_cmp(Q, t) != 0)
     {
-      cout << "Q != y^2 mod n" << endl;
-
       // N is composite
       anResult = false;
 
@@ -799,7 +943,7 @@ bool AtkinMorain(mpz_t& theN)
     }
     else
     {
-      cout << "Q == y^2 mod n!" << endl;
+      gmp_printf("P(%Zd,%Zd)\n", P.x, P.y);
     }
 
     // Step 5: EvaluatePoint will compute the multiple U = [m/q]P. Based on
@@ -851,15 +995,15 @@ int main(int argc, char* argv[])
   mpz_sub_ui(anNumber, anNumber, 1);
 
   // Show the number to be tested
-  //cout << "N=" << anNumber << endl;
+  gmp_printf("n=%Zd\n", anNumber);
 
   if(false == AtkinMorain(anNumber))
   {
-    cout << "N is composite" << endl;
+    printf("N is composite\n");
   }
   else
   {
-    cout << "N is prime" << endl;
+    printf("N is prime\n");
   }
 
   // Clear the number before exiting the program
