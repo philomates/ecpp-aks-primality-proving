@@ -15,6 +15,9 @@ atkin: atkin237.cpp
 ecpp: ecpp.cpp utils.o
 	$(CXX) $(INCLUDE) $(LIBS) -o ecpp ecpp.cpp utils.o
 
+debug: ecpp.cpp utils.o
+	$(CXX) $(INCLUDE) $(LIBS) -g -o ecpp ecpp.cpp utils.o
+
 clean:
 	@echo Cleaning ECPP Project
 	rm -f *.o
