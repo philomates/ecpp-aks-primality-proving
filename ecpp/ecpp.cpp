@@ -15,10 +15,12 @@
 
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
+const unsigned int MAX_POINTS = 100;
+const unsigned int MAX_PRIMES = 100000;
 
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
-mpz_t gDiscriminants[MAX_DISCRIMINANTS];
+mpz_t gD[MAX_DISCRIMINANTS];
 
 // Point structure
 struct Point
@@ -28,7 +30,7 @@ struct Point
 };
 
 /**
- * InitDiscriminants will initialize the gDiscriminants array the appropriate
+ * InitDiscriminants will initialize the gD array the appropriate
  * values.
  */
 void InitDiscriminants(void)
@@ -38,11 +40,11 @@ void InitDiscriminants(void)
   // Call mpz_init on each array element and assign its value
   for(unsigned int i=0;i<MAX_DISCRIMINANTS;i++)
   {
-    // Initialize and set each gDiscriminants array element
-    mpz_init_set_si(gDiscriminants[i], anD[i]);
+    // Initialize and set each gD array element
+    mpz_init_set_si(gD[i], anD[i]);
 
     // Display discriminants available
-    //gmp_printf("%d=%Zd\n", i, gDiscriminants[i]);
+    //gmp_printf("%d=%Zd\n", i, gD[i]);
   }
 }
 
@@ -51,7 +53,7 @@ void InitDiscriminants(void)
  * SquareMod returns the solution x to x^2 === a (mod p) which is used by the
  * ModifiedCornacchia to find the initial square root.
  */
-bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
+bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
 {
   bool anResult = false; // Was a valid X found?
   mpz_t anMod4;
@@ -149,16 +151,16 @@ bool SquareMod(mpz_t* theX, mpz_t theA, mpz_t& theP)
       mpz_mul_ui(anBase, theA, 4);
 
       // Compute x = 4*a^(p-5)/8 mod p
-      mpz_powm(*theX, anBase, anExp2, theP);
+      mpz_powm(anBase, anBase, anExp2, theP);
+
+      // Multiply the result by 2*a*x mod p
+      mpz_mul_ui(anBase, anBase, 2);
+      mpz_mul(anBase, anBase, theA);
+      mpz_mod(*theX, anBase, theP);
 
       // Clear our values we don't need anymore
       mpz_clear(anBase);
       mpz_clear(anExp2);
-
-      // Multiply the result by 2*a*x mod p
-      mpz_mul_ui(*theX, *theX, 2);
-      mpz_mul(*theX, *theX, theA);
-      mpz_mod(*theX, *theX, theP);
     }
 
     // Clear our values we don't need anymore
@@ -393,7 +395,7 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
 bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
 {
   bool anResult = true; // A suitable theQ was found
-  unsigned long count = 1000000; // Number of Prime numbers to remove from theQ
+  unsigned long count = MAX_PRIMES; // Primes to try to remove from theQ
   mpz_t prime;  // Prime numbers to remove from theQ
 
   // If theM is prime or probably prime then stop now
@@ -592,34 +594,140 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& the
 }
 
 /**
- * ObtainCurveParameters will attempt to obtain the curve parameters a and b
- * for an elliptic curve that would have order m if n is indeed prime.
+ * CalculateNonresidue will find a random quadratic nonresidue g mod p and if
+ * theD == -3 then g must also be a cubic nonresidue. This is based on step 1
+ * of algorithm (7.5.9) or step 2b of algorithm (7.5.10)
  */
-bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
+void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
+{
+  mpz_t t;  // t = theG^(n_div_3) mod n
+  mpz_t n_div_3;  // (N - 1) / 3
+
+  // Initialize our temporary value of (N - 1) / 3
+  mpz_init(t);
+  mpz_init_set(n_div_3, theN);
+
+  // Compute (N - 1) / 3
+  mpz_sub_ui(n_div_3, n_div_3, 1);
+  mpz_tdiv_q_ui(n_div_3, n_div_3, 3);
+
+  do
+  {
+    // Pick a random x from 0 to N-1
+    mpz_urandomm(*theG, gRandomState, theN);
+    //mpz_set_ui(*theG, 1000021176);
+
+    // Eliminate 0 as a possible theG value
+    if(mpz_cmp_ui(*theG, 0) == 0)
+      continue;
+  
+    // Make sure it passes the Jacobi test
+    if(-1 != mpz_jacobi(*theG, theN))
+      continue; // Jacobi returned -1, try another g
+
+    // Make sure g is a cubic nonresidue
+    if(mpz_cmp_si(theD, -3) == 0)
+    {
+      mpz_powm(t, *theG, n_div_3, theN);
+      
+      // If our result is equal to 1, then its not cubic nonresidue
+      if(mpz_cmp_ui(t, 1) == 0)
+        continue;
+    }
+
+    // If we got to here we can quit, theG is good to use
+    break;
+  } while (true);
+
+  // Clear our temporary value
+  mpz_clear(n_div_3);
+  mpz_clear(t);
+}
+
+/**
+ * ObtainCurveParameters will attempt to obtain the curve parameters a and b
+ * for an elliptic curve that would have order m if n is indeed prime. This is
+ * based on steps 5-7 of algorithm (7.5.9) or steps 3-5 of algorithm (7.5.10).
+ */
+bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, mpz_t& theG, unsigned int theK)
 {
   bool anResult = true; // True if curve parameters a and b were found
 
   // Special case for D=-3 and D=-4
   if(mpz_cmp_si(theD, -3) == 0)
   {
-    // a=0, b=-1 mod n
-    mpz_set_ui(*theA,0);
-    mpz_set(*theB,theN);
-    mpz_sub_ui(*theB, *theB, 1);
+    // If theK >= 6 then no curve parameters will be returned
+    if(theK >= 6)
+    {
+      // No curve parameters available, try another discriminant
+      anResult = false;
+    }
+    else
+    {
+      // a = 0 in all k cases below
+      mpz_set_ui(*theA,0);
+      
+      // Quickly handle special case of k=0: b=-1 mod n
+      if(theK == 0)
+      {
+        // Set b = -1 mod n = n - 1
+        mpz_set(*theB,theN);
+        mpz_sub_ui(*theB, *theB, 1);
+        //mpz_set_str(*theB, "273047738243666261637604519", 10);
+      }
+      // Handle other cases for theK < 6
+      else
+      {
+        // Set b = b * g
+        mpz_mul(*theB, *theB, theG);
+        mpz_mod(*theB, *theB, theN);
+      }
+    }
   }
   else if(mpz_cmp_si(theD, -4) == 0)
   {
-    // a=-1 mod n, b=0
-    mpz_set(*theA,theN);
-    mpz_sub_ui(*theA, *theA, 1);
-    mpz_set_ui(*theB,0);
+    // If theK >= 4 then no curve parameters will be returned
+    if(theK >= 4)
+    {
+      // No curve parameters available, try another discriminant
+      anResult = false;
+    }
+    else
+    {
+      // b = 0 in all k cases below
+      mpz_set_ui(*theB,0);
+      
+      // Quickly handle special case of k=0: a=-1 mod n
+      if(theK == 0)
+      {
+        // a=-1 mod n, b=0
+        mpz_set(*theA,theN);
+        mpz_sub_ui(*theA, *theA, 1);
+      }
+      // Handle other cases for theK < 4
+      else
+      {
+        // Set a = a * g
+        mpz_mul(*theA, *theA, theG);
+        mpz_mod(*theA, *theA, theN);
+      }
+    }
   }
   else
   {
-    // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
-    //                 algorithm 7.5.10 (Hilbert lookup table)
-    printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
-    anResult = false;
+    // If theK >= 2 then no curve parameters will be returned
+    if(theK >= 2)
+    {
+      // No curve parameters available, try another discriminant
+      anResult = false;
+    }
+    else
+    {
+      // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
+      //                 algorithm 7.5.10 (Hilbert lookup table)
+      printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
+      anResult = false;
+    }
   }
 
   // Return true if we found our curve parameters a and b above
@@ -627,7 +735,68 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD)
 }
 
 /**
- * Add implements the Elliptic add method described by Algorithm 7.2.2. This
+ * ChoosePoint will try and find a point (x,y) on the curve using the a and b
+ * values provided according to algorithm (7.2.1). This will return true if
+ * during the process of finding P, ChoosePoint discovers that N is composite,
+ * false otherwise.
+ */
+bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
+{
+  bool anResult = false;  // True if we discover theN is composite
+  bool anFound = false;  // True when we find a suitable P
+  mpz_t Q;
+  mpz_t t;
+
+  // Initialize our temporary values
+  mpz_init(Q);
+  mpz_init(t);
+  
+  do
+  {
+    // Step 4a: Choose a random x such that Q = (x^3 + ax + b) mod n and
+    // Jacobi(Q/N) != -1.
+    do
+    {
+      // Pick a random x from 0 to N-1
+      mpz_urandomm(theP->x, gRandomState, theN);
+      //mpz_set_ui(theP->x, 946781885);
+
+      // Compute Q = x^3
+      mpz_powm_ui(Q, theP->x, 3, theN);
+      
+      // Compute Q = Q + ax
+      mpz_addmul(Q, theA, theP->x);
+      
+      // Compute Q = Q + b
+      mpz_add(Q, Q, theB);
+      
+      // Compute Q = Q mod n
+      mpz_mod(Q, Q, theN);
+    } while(-1 == mpz_jacobi(Q,theN));
+
+    // Step 4b: Apply Algorithm 2.3.8 or 2.3.9 (with a = Q and p = n) to find
+    // an integer y that would satisfy y2 = Q (mod n) if n were prime
+    anFound = SquareMod(&theP->y, Q, theN);
+  } while(false == anFound);
+
+  // Step 4c: If y^2 mod n != Q then N is composite
+  mpz_powm_ui(t, theP->y, 2, theN);
+  if(mpz_cmp(Q, t) != 0)
+  {
+    // N is composite
+    anResult = true;
+  }
+  
+  // Clear the temporary values used above
+  mpz_clear(t);
+  mpz_clear(Q);
+
+  // Return true if we found a composite, false otherwise
+  return anResult;
+}
+
+/**
+ * Add implements the Elliptic add method described by algorithm (7.2.2). This
  * will return true if an illegal inversion occurred and will not set theR
  * unless the inversion succeeded.
  */
@@ -663,24 +832,25 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
   
   // Compute (x2 - x1) portion of m = (y2-y1)(x2-x1)^-1
   mpz_sub(m, theP2.x, theP1.x);
-  
+
   // Compute inverse (x2-x1)^-1 first
   anResult = (mpz_invert(m, m, theN) == 0);
-  
+
   // Only proceed if our inversion succeeded
-  if(anResult)
+  if(false == anResult)
   {
     Point R;  // Point R to return via theR
 
     // Initialize our working point R
     mpz_init(R.x);
     mpz_init(R.y);
-    
-    // Compute (y2 - y1)
-    mpz_mul(R.x, theP2.y, theP1.y);
 
-    // Compute m = (y2-y1)(x2-x1)^-1
+    // Compute (y2 - y1)
+    mpz_sub(R.x, theP2.y, theP1.y);
+    
+    // Compute m = ((y2-y1)(x2-x1)^-1) mod n
     mpz_mul(m, R.x, m);
+    mpz_mod(m, m, theN);
     
     // Compute R.x = m^2 - x1 - x2
     mpz_powm_ui(R.x, m, 2, theN);
@@ -712,7 +882,7 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
 
 /**
  * Double implements the double portion of the Elliptic add method described by
- * Algorithm 7.2.2.
+ * algorithm (7.2.2).
  */
 void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
 {
@@ -761,10 +931,10 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
 
 /**
  * Multiply implements the Elliptical multiplication method described by
- * Algorithm 7.2.4. This will return true if an illegal inversion occurred
+ * algorithm (7.2.4). This will return true if an illegal inversion occurred
  * during one of the Elliptical add method calls.
  */
-bool Multiply(struct Point* theR, mpz_t theM, struct Point& P)
+bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz_t& theA)
 {
   bool anResult = false;  // True if illegal inversion occurred
 
@@ -777,19 +947,159 @@ bool Multiply(struct Point* theR, mpz_t theM, struct Point& P)
   }
   else
   {
+    mpz_t i; // number of multiplies to perform
+    mpz_t t; // Used for gcd tests which makes Multiply return faster
+    Point A; // The original number provided
+    Point B; // Another number to be added, starts at infinity
+    
+    // Initialize our counter
+    mpz_init_set(i, theM);
+    mpz_init(t);
+    mpz_init_set(A.x, P.x);
+    mpz_init_set(A.y, P.y);
+    mpz_init_set_ui(B.x, 0);
+    mpz_init_set_ui(B.y, 1);
+    
     // Loop while no illegal inversions have occurred and theM is > 0
-    while(false == anResult && mpz_cmp_ui(theM, 0) > 0)
+    while(false == anResult && mpz_cmp_ui(i, 0) > 0)
     {
-      if(mpz_odd_p(theM))
+      // When our counter is odd, use the Add method
+      if(mpz_odd_p(i))
       {
+        // Subtract one from our counter
+        mpz_sub_ui(i, i, 1);
         
+        // Compute difference between B.x and A.x
+        mpz_sub(t, B.x, A.x);
+        mpz_mod(t, t, theN);
+        
+        // Perform GCD test
+        mpz_gcd(t, t, theN);
+        
+        // Continue our loop only if t == 1 or t == n
+        anResult = !(mpz_cmp_ui(t, 1) == 0 || mpz_cmp(t, theN) == 0);
+
+        // If A is at infinity (point O) don't do anything
+        if(mpz_cmp_ui(A.x, 0) == 0 && mpz_cmp_ui(A.y, 1) == 0)
+        {
+          // do nothing
+        }
+        // If B is at infinity (point O) then B = A*O = A
+        else if(mpz_cmp_ui(B.x, 0) == 0 && mpz_cmp_ui(B.y, 1) == 0)
+        {
+          mpz_set(B.x, A.x);
+          mpz_set(B.y, A.y);
+        }
+        // Otherwise, just do the addition
+        else
+        {
+          // Check for illegal inversions during Add
+          anResult = Add(&B, A, B, theN);
+        }
       }
+      // Our counter is even, use the Double method instead of Add
       else
       {
+        // Divide our counter by two for each double we perform
+        mpz_tdiv_q_ui(i, i, 2);
+        
+        // Compute the value 2*A.y
+        mpz_mul_ui(t, A.y, 2);
+        mpz_mod(t, t, theN);
+        
+        // Perform GCD test
+        mpz_gcd(t, t, theN);
+        
+        // Continue our loop only if t == 1 or t == n
+        anResult = !(mpz_cmp_ui(t, 1) == 0 || mpz_cmp(t, theN) == 0);
+
+        // Use the double method
+        Double(&A, A, theN, theA);        
       }
     }
-    // TODO: Perform the multiply using Add and Subtract methods
+
+    // B has our results, make sure they are not bigger than n
+    mpz_mod(B.x, B.x, theN);
+    mpz_mod(B.y, B.y, theN);
+    
+    // Set our results to whatever B is set to now
+    mpz_set(theR->x, B.x);
+    mpz_set(theR->y, B.y);
+
+    // Clear our values used above
+    mpz_clear(B.y);
+    mpz_clear(B.x);
+    mpz_clear(A.y);
+    mpz_clear(A.x);
+    mpz_clear(t);
+    mpz_clear(i);
   }
+  
+  // Return true if an illegal inversions occurred or a divisor was found
+  return anResult;
+}
+
+/**
+ * EvaluatePoint will compute the multiple U = [m/q]P. Based on these results
+ * N will be either composite or Q << N will need to be proven prime to prove
+ * that N is prime. This will return -1 if N is found to be composite, 0 if
+ * another point should be tested, or 1 if N is found to be prime if Q is
+ * proven to be prime during the next iteration.
+ */
+int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, mpz_t& theQ, mpz_t& theA, mpz_t& theB)
+{
+  int anResult = 0;  // Assume that we will need another point
+  bool anComposite = false;  // True if Multiply returns an illegal inversion
+  mpz_t t;  // Store the result of m/q for computing U
+
+  // Initialize our temporary values
+  mpz_init(t);
+
+  // First compute t = m/q
+  mpz_tdiv_q(t, theM, theQ);
+  
+  // Now compute U = [m/q]P
+  anComposite = Multiply(theU, t, P, theN, theA);
+
+  // Clear our temporary value
+  mpz_clear(t);
+
+  // Did we have an illegal inversion?
+  if(anComposite)
+  {
+    gmp_printf("U=[m/q]P gave an illegal conversion!\n");
+    
+    anResult = -1; // Illegal inversion occurred, N is composite
+  }
+  // Make sure U != O (infinity point) before calculating V
+  else if(mpz_cmp_ui(theU->x,0) == 0 && mpz_cmp_ui(theU->y,1) == 0)
+  {
+    anResult = 0; // Try another point, this point didn't tell us anything
+  }
+  else
+  {
+    // Now compute V = [q]U
+    anComposite = Multiply(theV, theQ, *theU, theN, theA);
+ 
+    // If V gives us an illegal inversion, then we now N is prime if Q is
+    // proven prime
+    if(anComposite)
+    {
+      anResult = 1; // N is prime if Q is prime
+    }
+    // If V == O (infinity point) then N is prime if Q is prime
+    //else if(mpz_cmp_ui(theV->x,0) == 0 && mpz_cmp_ui(theV->y,1) == 0)
+    //{
+    //  anResult = -1; // N is composite
+    //}
+    else
+    {
+      anResult = 0; // Try another point, this point didn't tell us anything
+    }
+  }
+
+  // Return N is composite, try another point, or N is prime if Q is prime
+  return anResult;
 }
 
 /**
@@ -799,12 +1109,16 @@ bool Multiply(struct Point* theR, mpz_t theM, struct Point& P)
 bool AtkinMorain(mpz_t& theN)
 {
   bool anResult = false; // True if theNumber is proven prime, false otherwise
-  bool anFound = false;  // True if m, u, v, and q were found in step 1
+  bool anDone = false;  // True if theN was found to be prime or composite
   unsigned char anIndexD = 0;  // Index to selected discriminant
+  unsigned int anIterations = 0;  // Number of iterations performed so far
+
+  mpz_t n;  // The n to be tested
   mpz_t m;  // Curve order m
   mpz_t q;  // Factor q that if proven prime means that N is prime
   mpz_t u;  // Solution u
   mpz_t v;  // Solution v
+  mpz_t g;  // Quadratic nonresidue g
   mpz_t a;  // Root a
   mpz_t b;  // Root b
   mpz_t Q;  // Q in ChoosePoint step
@@ -813,20 +1127,15 @@ bool AtkinMorain(mpz_t& theN)
   Point V;  // Point V used in step 5: EvaluatePoint
   mpz_t t;  // Temporary variable for testing y^2 mod n != Q
 
-  // Step 0: Use Miller-Rabbin to test if theN is composite since there is no
-  // guarrentee that ECPP will successfully find a u and v in Step 1, but
-  // Miller-Rabbin guarrentees to find all composites quickly.
-  if(mpz_probab_prime_p(theN, 10) == 0)
-    return false;
-
-  // Initialize m, q, u, and v values
+  // Initialize n, m, q, u, and v values
+  mpz_init_set(n, theN);
   mpz_init(m);
   mpz_init(q);
   mpz_init(u);
   mpz_init(v);
+  mpz_init(g);
   mpz_init(a);
   mpz_init(b);
-  mpz_init(Q);
   mpz_init(P.x);
   mpz_init(P.y);
   mpz_init(U.x);
@@ -835,139 +1144,161 @@ bool AtkinMorain(mpz_t& theN)
   mpz_init(V.y);
   mpz_init(t);
 
-  // Step 1: ChooseDiscriminant will attempt to find a discriminant D that
-  // satisfies the following:
-  //   Jacobi(D/N) = 1
-  //   4n = u^2 + ABS(D)v^2 where u and v can be found using D
-  //   m curve order can be found
-
-  // Find a valid discriminant, u, v, and m values
+  // Loop through each discriminant in the gD array or until our anDone value
+  // is set to true.
   do
   {
-    // Increment D - note first pass will skip dummy 0 entry in anD array above
+    // Step 0: Use Miller-Rabbin to test if theN is composite since there is
+    // no guarrentee that ECPP will successfully find a u and v in Step 1, but
+    // Miller-Rabbin guarrentees to find all composites quickly.
+    if(mpz_probab_prime_p(n, 10) == 0)
+    {
+      // N is composite
+      anResult = false;
+      
+      // We are done
+      anDone = true;
+      
+      // Exit the discriminant loop
+      break;
+    }
+
+    // Step 1: ChooseDiscriminant will attempt to find a discriminant D that
+    // satisfies steps 1a, 1b, and step 2 by incrementing through each
+    // discriminant in our gD array, note that the gD array has a dummy entry
+    // 0 at the beginning so we increment first before testing
     anIndexD++;
 
-    // Find Jacobi(D,N) that equals 1
-    if(1 != mpz_jacobi(gDiscriminants[anIndexD],theN))
-      continue; // Jacobi returned -1 or 0
+    // Step 1a: Find a discriminant that yields a Jacobi(D,N) == 1
+    if(1 != mpz_jacobi(gD[anIndexD],n))
+      continue; // Jacobi returned -1 or 0, try another discriminant
 
-    gmp_printf("d=%Zd\n", gDiscriminants[anIndexD]);
-
-    // Try to retrieve u and v using modified Cornacchia algorithm (2.3.13)
-    if(false == ModifiedCornacchia(&u, &v, theN, gDiscriminants[anIndexD]))
-    {
-      continue; // No solution found, u and v not set
-    }
-    else
-    {
-      gmp_printf("u=%Zd v=%Zd\n", u, v);
-    }
+    // Step 1b: Find a u and v that satisfies 4n = u^2 + ABS(D)v^2 using the
+    // modified Cornacchia algorithm (2.3.13)
+    if(false == ModifiedCornacchia(&u, &v, n, gD[anIndexD]))
+      continue; // No solution found, u and v not set, try another discriminant
 
     // Step 2: FactorOrders attempts to find a possible order m that factors
     // as m = kq where k > 1 and q is a probable prime > (n^0.25 + 1)^2. If
     // this can't be done after K_max iterations than return FALSE and choose
     // a new discriminant D and curve m.
-    if(false == FactorOrders(&m, &q, u, v, theN, gDiscriminants[anIndexD]))
-    {
-      continue; // No factor q or curve m was found, try another D
-    }
-    else
-    {
-      gmp_printf("m=%Zd q=%Zd\n", m, q);
-    }
+    if(false == FactorOrders(&m, &q, u, v, n, gD[anIndexD]))
+      continue; // No factor q or curve m was found, try another discriminant
 
-    // Step 3: ObtainCurveParameters will attempt to obtain the curve
-    // parameters a and b for an elliptic curve that would have order m if n
-    // is indeed prime.
-    if(false == ObtainCurveParameters(&a, &b, theN, gDiscriminants[anIndexD]))
-    {
-      continue; // No curve parameter a and b was obtained
-    }
-    else
-    {
-      gmp_printf("a=%Zd b=%Zd\n", a, b);
-
-      // D, m, q, a and b were all found
-      anFound = true;
-      // Exit loop
-      break;
-    }
-  } while(anIndexD + 1 < MAX_DISCRIMINANTS);
-
-  // Try to find a point using the curve found above that proves N prime or
-  // composite
-  bool anDone = false;
-  while(true == anFound && false == anDone)
-  {
-    // Step 4: ChoosePoint will try and find a point (x,y) on the curve
-    // using the a and b values provided from above.
+    // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
+    // g mod p and if D=-3 a noncube g^3 mod p for use in step 4b
+    CalculateNonresidue(&g, n, gD[anIndexD]);
+    
+    // Now that we have selected a curve m with factor q to be proven, obtain
+    // curve parameters and test up to MAX_POINTS to see if N is composite
+    unsigned int points = 0;
     do
     {
-      // Step 4a: Choose a random x such that Q = (x^3 + ax + b) mod n and
-      // Jacobi(Q/N) != -1.
-      do
+      // Step 4b: ObtainCurveParameters will attempt to obtain the curve
+      // parameters a and b for an elliptic curve that would have order m if n
+      // is indeed prime.
+
+      // Loop through each valid a and b values of this curve
+      unsigned int k = 0;
+      while(!anDone && k < 6 &&
+        ObtainCurveParameters(&a, &b, n, gD[anIndexD], g, k))
       {
-        // Pick a random x from 0 to N-1
-        mpz_urandomm(P.x, gRandomState, theN);
-
-        // Compute Q = x^3
-        mpz_powm_ui(Q, P.x, 3, theN);
+        // Step 5: ChoosePoint will try and find a point (x,y) on the curve
+        // using the a and b values provided from above.
+        anDone = ChoosePoint(&P,n,a,b);
         
-        // Compute Q = Q + ax
-        mpz_addmul(Q, a, P.x);
+        // Did we find that N is composite while choosing a point?
+        if(anDone)
+        {
+          // N is composite
+          anResult = false;
+          
+          // Exit the ObtainCurveParameters and Points loops
+          break;
+        }
+
+        // Step 6: EvaluatePoint will compute the multiple U = [m/q]P. Based
+        // on these results N will be either composite or Q << N will need to
+        // be proven prime to prove that N is prime.
+        int anTest = EvaluatePoint(&U, &V, P, n, m, q, a, b);
         
-        // Compute Q = Q + b
-        mpz_add(Q, Q, b);
-        
-        // Compute Q = Q mod n
-        mpz_mod(Q, Q, theN);
-      } while(-1 == mpz_jacobi(Q,theN));
+        gmp_printf("test=%d U(%Zd,%Zd) V(%Zd,%Zd)\n", anTest, U.x, U.y, V.x, V.y);
 
-      // Step 4b: Apply Algorithm 2.3.8 or 2.3.9 (with a = Q and p = n) to find
-      // an integer y that would satisfy y2 = Q (mod n) if n were prime
-      anFound = SquareMod(&P.y, Q, theN);
-    } while(false == anFound);
+        // Did EvaluatePoint determine N was composite?
+        if(anTest < 0)
+        {
+          // N is composite
+          anResult = false;
+          
+          // We are done
+          anDone = true;
+          
+          // Exit the ObtainCurveParameters and Points loops
+          break;
+        }
+        // Did EvaluatePoint determine N was prime if Q is prime?
+        else if(anTest > 0)
+        {
+          // N is prime if q can be proven prime
+          anResult = true;
 
-    // Step 4c: If y^2 mod n != Q then N is composite
-    mpz_powm_ui(t, P.y, 2, theN);
-    if(mpz_cmp(Q, t) != 0)
-    {
-      // N is composite
-      anResult = false;
+          // Print certificate information
+          gmp_printf("n[%d]=%Zd\n", anIterations++, n);
+          gmp_printf("d=%Zd\n", gD[anIndexD]);
+          gmp_printf("u=%Zd\n", u);
+          gmp_printf("v=%Zd\n", v);
+          gmp_printf("m=%Zd q=%Zd\n", m, q);
+          gmp_printf("a=%Zd b=%Zd\n", a, b);
+          gmp_printf("P(%Zd,%Zd)\n", P.x, P.y);
+          gmp_printf("U(%Zd,%Zd)\n", U.x, U.y);
+          gmp_printf("V(%Zd,%Zd)\n", V.x, V.y);
 
-      // We are done
-      anDone = true;
+          // Set n = q and start over
+          mpz_set(n, q);
+          
+          // Reset our discriminant choice back to 0 and loop again
+          anIndexD = 0;
 
-      // Exit this loop
-      break;
-    }
-    else
-    {
-      gmp_printf("P(%Zd,%Zd)\n", P.x, P.y);
-    }
+          // Exit the points loop
+          points = MAX_POINTS;
+          
+          // TEST TEST TEST, exit the D loop
+          //anDone = true;
+          
+          // Exit the ObtainCurveParameters loop
+          break;
+        }
+        // Does EvaluatePoint want us to try another point?
+        else
+        {
+          // Try another a, b, and P
+        }
 
-    // Step 5: EvaluatePoint will compute the multiple U = [m/q]P. Based on
-    // these results N will be either composite or Q << N will need to be
-    // proven prime to prove that N is prime.
-    //anDone = EvaluatePoint(anResult, x, y);
-    break;
-  }
+        // Increment our k value
+        k++;
+      } // while(!anDone && k < 6 && ObtainCurveParameters(&a,&b,...) == true)
+
+      // Increment points for every k (a and b) tested
+      points += k;
+
+    } while(!anDone && points < MAX_POINTS);
+  } while(!anDone && anIndexD <= MAX_DISCRIMINANTS);
 
   // Clear our values used above
-  mpz_clear(t);
   mpz_clear(V.y);
   mpz_clear(V.x);
   mpz_clear(U.y);
   mpz_clear(U.x);
   mpz_clear(P.y);
   mpz_clear(P.x);
-  mpz_clear(Q);
   mpz_clear(b);
   mpz_clear(a);
+  mpz_clear(g);
   mpz_clear(v);
   mpz_clear(u);
   mpz_clear(q);
   mpz_clear(m);
+  mpz_clear(n);
 
   // Return true if value is proven prime, false otherwise
   return anResult;
@@ -993,9 +1324,6 @@ int main(int argc, char* argv[])
   // Try test number of 2^89 - 1 which is prime
   mpz_ui_pow_ui(anNumber, 2, 89);
   mpz_sub_ui(anNumber, anNumber, 1);
-
-  // Show the number to be tested
-  gmp_printf("n=%Zd\n", anNumber);
 
   if(false == AtkinMorain(anNumber))
   {
