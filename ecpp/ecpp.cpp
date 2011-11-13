@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
+#include <assert.h>
+
+#include "utils.h"
 
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
@@ -21,6 +24,10 @@ const unsigned int MAX_PRIMES = 100000;
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
 mpz_t gD[MAX_DISCRIMINANTS];
+
+// class numbers for discriminants (Pg. 361)
+int hD1[] = {-3, -4, -7, -8, -11, -19, -43, -67, -163};
+int hD2[] = {-15, -20, -24, -35, -40, -51, -52, -88, -91, -115, -123, -148, -187, -232, -267, -403, -427};
 
 // Point structure
 struct Point
@@ -620,7 +627,7 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
     // Eliminate 0 as a possible theG value
     if(mpz_cmp_ui(*theG, 0) == 0)
       continue;
-  
+
     // Make sure it passes the Jacobi test
     if(-1 != mpz_jacobi(*theG, theN))
       continue; // Jacobi returned -1, try another g
@@ -629,7 +636,7 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
     if(mpz_cmp_si(theD, -3) == 0)
     {
       mpz_powm(t, *theG, n_div_3, theN);
-      
+
       // If our result is equal to 1, then its not cubic nonresidue
       if(mpz_cmp_ui(t, 1) == 0)
         continue;
@@ -651,6 +658,12 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
  */
 bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, mpz_t& theG, unsigned int theK)
 {
+  // theA, theB: curve parameters a and b computed by this method
+  // theG: 'suitable nonresidue of p'
+  // theK: k-th iteration of ObtainCurveParameters
+  // theN: number we are currently testing for primality
+  // theD: current discriminant from global discriminant array gD
+
   bool anResult = true; // True if curve parameters a and b were found
 
   // Special case for D=-3 and D=-4
@@ -666,7 +679,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
     {
       // a = 0 in all k cases below
       mpz_set_ui(*theA,0);
-      
+
       // Quickly handle special case of k=0: b=-1 mod n
       if(theK == 0)
       {
@@ -678,9 +691,20 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
       // Handle other cases for theK < 6
       else
       {
-        // Set b = b * g
+        // Set b = b * g   (b = -g^k)
         mpz_mul(*theB, *theB, theG);
         mpz_mod(*theB, *theB, theN);
+
+        // Begin DEBUG
+        mpz_t tmpG;
+
+        // tmpG = -g^k mod n
+        mpz_pow_ui(tmpG, theG, theK);
+        mpz_mul_si(tmpG, tmpG, -1);
+        mpz_mod(tmpG, tmpG, theN);
+
+        assert(mpz_cmp(*theB, tmpG) == 0);
+        // End DEBUG
       }
     }
   }
@@ -696,7 +720,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
     {
       // b = 0 in all k cases below
       mpz_set_ui(*theB,0);
-      
+
       // Quickly handle special case of k=0: a=-1 mod n
       if(theK == 0)
       {
@@ -715,17 +739,42 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
   }
   else
   {
-    // If theK >= 2 then no curve parameters will be returned
-    if(theK >= 2)
+
+    // If theK < 2 and theD has a class number of 1 or 2, use table for lookup
+    signed long int tmpD = mpz_get_si(theD);
+    if(theK < 2 && (find(tmpD, hD1, 9) || find(tmpD, hD2, 17)))
     {
-      // No curve parameters available, try another discriminant
+      /**
+      mpz_t r, s;
+      mpz_init(r);
+      mpz_init(s);
+
+      LookupCurveParameters(&r, &s, theD);
+
+      mpz_mul(*theA, *theA, theG);
+
+      mpz_t tmpA, tmpB, tmpG;
+      mpz_set_ui(*theB,0);
+
+      mpz_pow_ui(tmpA, theG, 2*theK);
+      mpz_mul_si(tmpG, tmpG, -1);
+      mpz_mod(tmpG, tmpG, theN);
+
+      mpz_mul_si(*theA, tmpA, -3);
+      mpz_mod(*theA, *theA, theN);
+
+      mpz_mul_si(*theB, tmpB, 2);
+      mpz_mod(*theB, *theB, theN);
+      **/
+
+      // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
+      //                 algorithm 7.5.10 (Hilbert lookup table)
+      printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
       anResult = false;
     }
     else
     {
-      // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
-      //                 algorithm 7.5.10 (Hilbert lookup table)
-      printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
+      // No curve parameters available, try another discriminant
       anResult = false;
     }
   }
@@ -750,7 +799,7 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
   // Initialize our temporary values
   mpz_init(Q);
   mpz_init(t);
-  
+
   do
   {
     // Step 4a: Choose a random x such that Q = (x^3 + ax + b) mod n and
@@ -763,13 +812,13 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
 
       // Compute Q = x^3
       mpz_powm_ui(Q, theP->x, 3, theN);
-      
+
       // Compute Q = Q + ax
       mpz_addmul(Q, theA, theP->x);
-      
+
       // Compute Q = Q + b
       mpz_add(Q, Q, theB);
-      
+
       // Compute Q = Q mod n
       mpz_mod(Q, Q, theN);
     } while(-1 == mpz_jacobi(Q,theN));
@@ -786,7 +835,7 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
     // N is composite
     anResult = true;
   }
-  
+
   // Clear the temporary values used above
   mpz_clear(t);
   mpz_clear(Q);
@@ -804,7 +853,7 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
 {
   bool anResult = false;  // True if illegal inversion occurred
   mpz_t m;  // Elliptic slope value m
-  
+
   // Initialize our m value first
   mpz_init(m);
 
@@ -821,15 +870,15 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
       // Set our return result as O
       mpz_set_ui(theR->x, 0);
       mpz_set_ui(theR->y, 1);
-      
+
       // Clear our m value used above
       mpz_clear(m);
-      
+
       // Illegal inversion at the infinite point O
       return true;
     }
   }
-  
+
   // Compute (x2 - x1) portion of m = (y2-y1)(x2-x1)^-1
   mpz_sub(m, theP2.x, theP1.x);
 
@@ -847,23 +896,23 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
 
     // Compute (y2 - y1)
     mpz_sub(R.x, theP2.y, theP1.y);
-    
+
     // Compute m = ((y2-y1)(x2-x1)^-1) mod n
     mpz_mul(m, R.x, m);
     mpz_mod(m, m, theN);
-    
+
     // Compute R.x = m^2 - x1 - x2
     mpz_powm_ui(R.x, m, 2, theN);
     mpz_sub(R.x, R.x, theP1.x);
     mpz_sub(R.x, R.x, theP2.x);
     mpz_mod(R.x, R.x, theN);
-    
+
     // Compute R.y = m(x1 - x3) - y1
     mpz_sub(R.y, theP1.x, R.x);
     mpz_mul(R.y, R.y, m);
     mpz_sub(R.y, R.y, theP1.y);
     mpz_mod(R.y, R.y, theN);
-    
+
     // Set our return results now
     mpz_set(theR->x, R.x);
     mpz_set(theR->y, R.y);
@@ -872,7 +921,7 @@ bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& th
     mpz_clear(R.y);
     mpz_clear(R.x);
   }
-  
+
   // Clear our m value used above
   mpz_clear(m);
 
@@ -893,13 +942,13 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
   mpz_init(m);
   mpz_init(R.x);
   mpz_init(R.y);
-  
+
   // Compute 2*P.y first
   mpz_mul_ui(m, theP.y, 2);
-  
+
   // Compute inverse (2y)^-1 first
   mpz_invert(m, m, theN);
-  
+
   // Compute (3x^2 + a)
   mpz_mul(R.x, theP.x, theP.x);
   mpz_mul_ui(R.x, R.x, 3);
@@ -907,18 +956,18 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
 
   // Compute m = (3x^2 + a)(2y)^-1
   mpz_mul(m, R.x, m);
-  
+
   // Compute R.x = m^2 - 2x
   mpz_powm_ui(R.x, m, 2, theN);
   mpz_submul_ui(R.x, theP.x, 2);
   mpz_mod(R.x, R.x, theN);
-  
+
   // Compute R.y = m(x1 - x3) - y1
   mpz_sub(R.y, theP.x, R.x);
   mpz_mul(R.y, R.y, m);
   mpz_sub(R.y, R.y, theP.y);
   mpz_mod(R.y, R.y, theN);
-  
+
   // Set our return results now
   mpz_set(theR->x, R.x);
   mpz_set(theR->y, R.y);
@@ -951,7 +1000,7 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
     mpz_t t; // Used for gcd tests which makes Multiply return faster
     Point A; // The original number provided
     Point B; // Another number to be added, starts at infinity
-    
+
     // Initialize our counter
     mpz_init_set(i, theM);
     mpz_init(t);
@@ -959,7 +1008,7 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
     mpz_init_set(A.y, P.y);
     mpz_init_set_ui(B.x, 0);
     mpz_init_set_ui(B.y, 1);
-    
+
     // Loop while no illegal inversions have occurred and theM is > 0
     while(false == anResult && mpz_cmp_ui(i, 0) > 0)
     {
@@ -968,14 +1017,14 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
       {
         // Subtract one from our counter
         mpz_sub_ui(i, i, 1);
-        
+
         // Compute difference between B.x and A.x
         mpz_sub(t, B.x, A.x);
         mpz_mod(t, t, theN);
-        
+
         // Perform GCD test
         mpz_gcd(t, t, theN);
-        
+
         // Continue our loop only if t == 1 or t == n
         anResult = !(mpz_cmp_ui(t, 1) == 0 || mpz_cmp(t, theN) == 0);
 
@@ -1002,26 +1051,26 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
       {
         // Divide our counter by two for each double we perform
         mpz_tdiv_q_ui(i, i, 2);
-        
+
         // Compute the value 2*A.y
         mpz_mul_ui(t, A.y, 2);
         mpz_mod(t, t, theN);
-        
+
         // Perform GCD test
         mpz_gcd(t, t, theN);
-        
+
         // Continue our loop only if t == 1 or t == n
         anResult = !(mpz_cmp_ui(t, 1) == 0 || mpz_cmp(t, theN) == 0);
 
         // Use the double method
-        Double(&A, A, theN, theA);        
+        Double(&A, A, theN, theA);
       }
     }
 
     // B has our results, make sure they are not bigger than n
     mpz_mod(B.x, B.x, theN);
     mpz_mod(B.y, B.y, theN);
-    
+
     // Set our results to whatever B is set to now
     mpz_set(theR->x, B.x);
     mpz_set(theR->y, B.y);
@@ -1034,7 +1083,7 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
     mpz_clear(t);
     mpz_clear(i);
   }
-  
+
   // Return true if an illegal inversions occurred or a divisor was found
   return anResult;
 }
@@ -1057,7 +1106,7 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, 
 
   // First compute t = m/q
   mpz_tdiv_q(t, theM, theQ);
-  
+
   // Now compute U = [m/q]P
   anComposite = Multiply(theU, t, P, theN, theA);
 
@@ -1068,7 +1117,7 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, 
   if(anComposite)
   {
     gmp_printf("U=[m/q]P gave an illegal conversion!\n");
-    
+
     anResult = -1; // Illegal inversion occurred, N is composite
   }
   // Make sure U != O (infinity point) before calculating V
@@ -1080,7 +1129,7 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, 
   {
     // Now compute V = [q]U
     anComposite = Multiply(theV, theQ, *theU, theN, theA);
- 
+
     // If V gives us an illegal inversion, then we now N is prime if Q is
     // proven prime
     if(anComposite)
@@ -1155,10 +1204,10 @@ bool AtkinMorain(mpz_t& theN)
     {
       // N is composite
       anResult = false;
-      
+
       // We are done
       anDone = true;
-      
+
       // Exit the discriminant loop
       break;
     }
@@ -1188,7 +1237,7 @@ bool AtkinMorain(mpz_t& theN)
     // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
     // g mod p and if D=-3 a noncube g^3 mod p for use in step 4b
     CalculateNonresidue(&g, n, gD[anIndexD]);
-    
+
     // Now that we have selected a curve m with factor q to be proven, obtain
     // curve parameters and test up to MAX_POINTS to see if N is composite
     unsigned int points = 0;
@@ -1206,13 +1255,13 @@ bool AtkinMorain(mpz_t& theN)
         // Step 5: ChoosePoint will try and find a point (x,y) on the curve
         // using the a and b values provided from above.
         anDone = ChoosePoint(&P,n,a,b);
-        
+
         // Did we find that N is composite while choosing a point?
         if(anDone)
         {
           // N is composite
           anResult = false;
-          
+
           // Exit the ObtainCurveParameters and Points loops
           break;
         }
@@ -1221,7 +1270,7 @@ bool AtkinMorain(mpz_t& theN)
         // on these results N will be either composite or Q << N will need to
         // be proven prime to prove that N is prime.
         int anTest = EvaluatePoint(&U, &V, P, n, m, q, a, b);
-        
+
         gmp_printf("test=%d U(%Zd,%Zd) V(%Zd,%Zd)\n", anTest, U.x, U.y, V.x, V.y);
 
         // Did EvaluatePoint determine N was composite?
@@ -1229,10 +1278,10 @@ bool AtkinMorain(mpz_t& theN)
         {
           // N is composite
           anResult = false;
-          
+
           // We are done
           anDone = true;
-          
+
           // Exit the ObtainCurveParameters and Points loops
           break;
         }
@@ -1255,16 +1304,16 @@ bool AtkinMorain(mpz_t& theN)
 
           // Set n = q and start over
           mpz_set(n, q);
-          
+
           // Reset our discriminant choice back to 0 and loop again
           anIndexD = 0;
 
           // Exit the points loop
           points = MAX_POINTS;
-          
+
           // TEST TEST TEST, exit the D loop
           //anDone = true;
-          
+
           // Exit the ObtainCurveParameters loop
           break;
         }
@@ -1304,8 +1353,10 @@ bool AtkinMorain(mpz_t& theN)
   return anResult;
 }
 
+
 int main(int argc, char* argv[])
 {
+
   mpz_t anNumber;  // Number to be tested for Primality
 
   // Initialize our random generator first
@@ -1340,3 +1391,4 @@ int main(int argc, char* argv[])
   // Return 0
   return 0;
 }
+
