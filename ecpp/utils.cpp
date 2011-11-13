@@ -13,7 +13,6 @@ bool find(signed long int elem, int* array, int length)
   int i = 0;
   while(i < length)
   {
-    printf("%d: %d\n", i, array[i]);
     if(array[i++] == elem)
       return true;
   }

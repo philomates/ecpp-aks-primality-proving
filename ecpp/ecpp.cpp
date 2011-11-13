@@ -27,7 +27,8 @@ mpz_t gD[MAX_DISCRIMINANTS];
 
 // class numbers for discriminants (Pg. 361)
 int hD1[] = {-3, -4, -7, -8, -11, -19, -43, -67, -163};
-int hD2[] = {-15, -20, -24, -35, -40, -51, -52, -88, -91, -115, -123, -148, -187, -232, -267, -403, -427};
+int hD2[] = {-15, -20, -24, -35, -40, -51, -52, -88, -91, -115, -123, -148,
+             -187, -232, -267, -403, -427};
 
 // Point structure
 struct Point
@@ -42,7 +43,9 @@ struct Point
  */
 void InitDiscriminants(void)
 {
-  int32_t anD[MAX_DISCRIMINANTS] = {0,-3,-4,-7,-8,-11,-19,-43,-67,-163,-15,-20,-24,-35,-40,-51,-52,-88,-91,-115,-123,-148,-187,-232,-235,-267,-403,-427};
+  int32_t anD[MAX_DISCRIMINANTS] = {0,-3,-4,-7,-8,-11,-19,-43,-67,-163,-15,-20,
+                                    -24,-35,-40,-51,-52,-88,-91,-115,-123,-148,
+                                    -187,-232,-235,-267,-403,-427};
 
   // Call mpz_init on each array element and assign its value
   for(unsigned int i=0;i<MAX_DISCRIMINANTS;i++)
@@ -194,10 +197,10 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
   // Still nothing? Try the hardest case p === 1 (mod 8)
   else
   {
-    // Case 2 of algorithm 
+    // Case 2 of algorithm
     mpz_t d, s, t, A, D, m, i;
     mpz_t anExp1, anExp2, two;
-    
+
     mpz_init(d);
     mpz_init(s);
     mpz_init(t);
@@ -208,18 +211,18 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
     mpz_init(anExp1);
     mpz_init(anExp2);
     mpz_init(two);
-    
+
     // Find a random integer d = [2, p - 1] with Jacobi -1
     mpz_sub_ui(anExp1, theP, 3);
     do {
       mpz_urandomm(d, gRandomState, anExp1);
       mpz_add_ui(d, d, 2);
     } while (mpz_jacobi(d, theP) != -1);
-    
+
     // Represent p - 1 = d ^ s * t, with t odd
     mpz_sub_ui(anExp1, theP, 1);
     FactorPow2(s, t, anExp1);
-    
+
     // Compute A = a ^ t mod p
     mpz_powm(A, theA, t, theP);
 
@@ -233,9 +236,9 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
     {
       // Compute 2 ^ (s - 1 - i)
       mpz_sub_ui(anExp1, s, 1);
-      mpz_sub(anExp1, anExp1, i);      
+      mpz_sub(anExp1, anExp1, i);
       mpz_powm(anExp1, two, anExp1, theP);
-      
+
       // Compute A * D ^ m
       mpz_mul(anExp2, D, m);
       mpz_mul(anExp2, anExp2, A);
@@ -263,7 +266,7 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
     // Compute x = a ^ ((t + 1) / 2) * D ^ (m / 2)
     mpz_mul(anExp1, anExp1, anExp2);
     mpz_mod(*theX, anExp1, theP);
-    
+
     mpz_clear(d);
     mpz_clear(s);
     mpz_clear(t);
@@ -273,8 +276,8 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
     mpz_clear(i);
     mpz_clear(anExp1);
     mpz_clear(anExp2);
-    mpz_clear(two);    
-    
+    mpz_clear(two);
+
     anResult = true;
   }
 
@@ -491,7 +494,8 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
 /**
  * FindFactor will attempt to reduce theM provided to a potential prime theQ
  * that is also less than theT by factoring all easy primes out of theM.  If
- * theM is a composite then FindFactor will return false meaning theQ wasn't found because m is a composite.
+ * theM is a composite then FindFactor will return false meaning theQ wasn't
+ * found because m is a composite.
  */
 bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
 {
@@ -745,12 +749,292 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
   mpz_clear(t);
 }
 
+// Lookup Table 7.1
+bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& d, mpz_t& p)
+{
+  signed long int D = mpz_get_si(d);
+  bool isValid = true;
+  mpz_t sqrTmp, tmp, a, m;
+  mpz_inits(sqrTmp, tmp, a, m, NULL);
+
+  switch(D) {
+    case -7:
+      mpz_set_ui(*r, 125);
+      mpz_set_ui(*s, 189);
+      break;
+    case -8:
+      mpz_set_ui(*r, 125);
+      mpz_set_ui(*s, 98);
+      break;
+    case -11:
+      mpz_set_ui(*r, 512);
+      mpz_set_ui(*s, 539);
+      break;
+    case -19:
+      mpz_set_ui(*r, 512);
+      mpz_set_ui(*s, 513);
+      break;
+    case -43:
+      mpz_set_ui(*r, 512000);
+      mpz_set_ui(*s, 512001);
+      break;
+    case -67:
+      mpz_set_ui(*r, 85184000);
+      mpz_set_ui(*s, 85184001);
+      break;
+    case -163:
+      gmp_sscanf("151931373056000", "%Z", *r);
+      gmp_sscanf("151931373056001", "%Z", *s);
+      break;
+    case -15:
+      // 1225 - 2080 * sqrt(5)
+      mpz_set_ui(a, 5);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -2080);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 1225);
+
+      mpz_set_ui(*s, 5929);
+      break;
+    case -20:
+      // 108250 + 29835 * sqrt(5)
+      mpz_set_ui(a, 5);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_ui(tmp, 29835);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 108250);
+
+      mpz_set_ui(*s, 174724);
+      break;
+    case -24:
+      // 1757 - 494 * sqrt(2)
+      mpz_set_ui(a, 2);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -494);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 1757);
+
+      mpz_set_ui(*s, 1058);
+      break;
+    case -35:
+      // -1126400 - 1589760 * sqrt(5)
+      mpz_set_ui(a, 5);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -1589760);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_sub_ui(*r, tmp, 1126400);
+
+      mpz_set_ui(*s, 2428447);
+      break;
+    case -40:
+      // 54175 - 1020 * sqrt(5)
+      mpz_set_ui(a, 5);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -1020);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 54175);
+
+      mpz_set_ui(*s, 51894);
+      break;
+    case -51:
+      // 75520 - 7936 * sqrt(5)
+      mpz_set_ui(a, 17);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -7936);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 75520);
+
+      mpz_set_ui(*s, 108241);
+      break;
+    case -52:
+      // 1778750 + 5125 * sqrt(13)
+      mpz_set_ui(a, 13);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_ui(tmp, 5125);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 1778750);
+
+      mpz_set_ui(*s, 1797228);
+      break;
+    case -88:
+      // 181713125 - 44250  * sqrt(2)
+      mpz_set_ui(a, 2);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -44250);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 181713125);
+
+      mpz_set_ui(*s, 181650546);
+      break;
+    case -91:
+      // 74752 - 36352 * sqrt(13)
+      mpz_set_ui(a, 13);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -36352);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 74752);
+
+      mpz_set_ui(*s, 205821);
+      break;
+    case -115:
+      // 269593600 - 89157120  * sqrt(5)
+      mpz_set_ui(a, 13);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      mpz_set_si(tmp, -89157120);
+
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      mpz_add_ui(*r, tmp, 269593600);
+
+      mpz_set_ui(*s, 468954981);
+      break;
+    case -123:
+      // 1025058304000 - 1248832000 * sqrt(41)
+      mpz_set_ui(a, 41);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      gmp_sscanf("-1248832000", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("1025058304000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("1033054730449", "%Z", *s);
+      break;
+    case -148:
+      // 499833128054750 - 356500625 * sqrt(37)
+      mpz_set_ui(a, 37);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      gmp_sscanf("-356500625", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("499833128054750", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("499835296563372", "%Z", *s);
+      break;
+    case -187:
+      // 91878880000 - 1074017568000 * sqrt(17)
+      mpz_set_ui(a, 17);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      gmp_sscanf("-1074017568000", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("91878880000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("4520166756633", "%Z", *s);
+      break;
+    case -232:
+      // 1728371226151263375 - 11276414500 * sqrt(29)
+      mpz_set_ui(a, 29);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      gmp_sscanf("-11276414500", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("1728371226151263375", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("1728371165425912854", "%Z", *s);
+      break;
+    case -235:
+      // 7574816832000 - 190341944320 * sqrt(5)
+      mpz_set_ui(a, 5);
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+      gmp_sscanf("-190341944320", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("7574816832000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("8000434358469", "%Z", *s);
+      break;
+
+    case -267:
+      // 3632253349307716000000 - 12320504793376000 * sqrt(89)
+      mpz_set_ui(a, 89);
+
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+
+      gmp_sscanf("-12320504793376000", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("3632253349307716000000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("3632369580717474122449", "%Z", *s);
+      break;
+
+    case -403:
+      // 16416107434811840000 - 4799513373120384000 * sqrt(13)
+      mpz_set_ui(a, 13);
+
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+
+      gmp_sscanf("-4799513373120384000", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("16416107434811840000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("33720998998872514077", "%Z", *s);
+      break;
+
+    case -427:
+      // 564510997315289728000 - 5784785611102784000 * sqrt(61)
+      mpz_set_ui(a, 61);
+
+      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
+
+      gmp_sscanf("-5784785611102784000", "%Z", tmp);
+      mpz_mul(tmp, tmp, sqrTmp);
+
+      gmp_sscanf("564510997315289728000", "%Z", m);
+
+      mpz_add(*r, tmp, m);
+
+      gmp_sscanf("609691617259594724421", "%Z", *s);
+      break;
+
+    default:
+      isValid = false;
+  }
+
+  // keep things mod p
+  mpz_mod(*r, *r, p);
+  mpz_mod(*s, *s, p);
+
+  // clean up
+  mpz_clear(sqrTmp);
+  mpz_clear(tmp);
+  mpz_clear(a);
+  mpz_clear(m);
+
+  return isValid;
+}
+
 /**
  * ObtainCurveParameters will attempt to obtain the curve parameters a and b
  * for an elliptic curve that would have order m if n is indeed prime. This is
  * based on steps 5-7 of algorithm (7.5.9) or steps 3-5 of algorithm (7.5.10).
  */
-bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, mpz_t& theG, unsigned int theK)
+bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
+                           mpz_t& theD, mpz_t& theG, unsigned int theK)
 {
   // theA, theB: curve parameters a and b computed by this method
   // theG: 'suitable nonresidue of p'
@@ -789,7 +1073,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
         mpz_mul(*theB, *theB, theG);
         mpz_mod(*theB, *theB, theN);
 
-        // Begin DEBUG
+        // Begin Sanity Check
         mpz_t tmpG;
         mpz_init(tmpG);
 
@@ -800,7 +1084,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
 
         assert(mpz_cmp(*theB, tmpG) == 0);
         mpz_clear(tmpG);
-        // End DEBUG
+        // End Sanity Check
       }
     }
   }
@@ -835,38 +1119,55 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
   }
   else
   {
-
     // If theK < 2 and theD has a class number of 1 or 2, use table for lookup
     signed long int tmpD = mpz_get_si(theD);
     if(theK < 2 && (find(tmpD, hD1, 9) || find(tmpD, hD2, 17)))
     {
-      /**
-      mpz_t r, s;
-      mpz_init(r);
-      mpz_init(s);
+      mpz_t r, s, tmp, tmpG;
+      mpz_inits(r, s, tmp, tmpG, NULL);
 
-      LookupCurveParameters(&r, &s, theD);
+      if(LookupCurveParameters(&r, &s, theD, theN)) {
+        mpz_mul(*theA, *theA, theG);
 
-      mpz_mul(*theA, *theA, theG);
+        mpz_set_ui(*theB, 0);
 
-      mpz_t tmpA, tmpB, tmpG;
-      mpz_set_ui(*theB,0);
+        // Compute A
+        // s^3
+        mpz_pow_ui(tmp, s, 3);
 
-      mpz_pow_ui(tmpA, theG, 2*theK);
-      mpz_mul_si(tmpG, tmpG, -1);
-      mpz_mod(tmpG, tmpG, theN);
+        // * r
+        mpz_mul(tmp, tmp, r);
 
-      mpz_mul_si(*theA, tmpA, -3);
-      mpz_mod(*theA, *theA, theN);
+        // * -3
+        mpz_mul_si(tmp, tmp, -3);
 
-      mpz_mul_si(*theB, tmpB, 2);
-      mpz_mod(*theB, *theB, theN);
-      **/
+        // g^(2*k)
+        mpz_pow_ui(tmpG, theG, 2*theK);
+        mpz_mul(tmp, tmp, tmpG);
 
-      // TODO: Implement algorithm 7.5.9 (manually compute Hilbert) OR
-      //                 algorithm 7.5.10 (Hilbert lookup table)
-      printf("TODO: ObtainCurveParameters: Implement algorithm 7.5.9 or 7.5.10\n");
-      anResult = false;
+        mpz_mod(*theA, tmp, theN);
+
+        // Compute B
+        // s^5
+        mpz_pow_ui(tmp, s, 5);
+
+        // * r
+        mpz_mul(tmp, tmp, r);
+
+        // * 2
+        mpz_mul_si(tmp, tmp, 2);
+
+        // g^(3*k)
+        mpz_pow_ui(tmpG, theG, 3*theK);
+        mpz_mul(tmp, tmp, tmpG);
+
+        mpz_mod(*theB, tmp, theN);
+        anResult = true;
+        printf("ObtainCurveParameters returned TRUE\n");
+      } else {
+        printf("ObtainCurveParameters returned FALSE\n");
+        anResult = false;
+      }
     }
     else
     {
@@ -1315,6 +1616,11 @@ bool AtkinMorain(mpz_t& theN)
     anIndexD++;
 
     // Step 1a: Find a discriminant that yields a Jacobi(D,N) == 1
+
+    // XXX: I added this check in because when gD[i] is 0 segfaults occured
+    if(mpz_cmp_ui(gD[anIndexD],0) == 0)
+      continue;
+
     if(1 != mpz_jacobi(gD[anIndexD],n))
       continue; // Jacobi returned -1 or 0, try another discriminant
 
@@ -1487,4 +1793,3 @@ int main(int argc, char* argv[])
   // Return 0
   return 0;
 }
-
