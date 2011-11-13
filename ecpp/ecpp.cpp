@@ -50,6 +50,20 @@ void InitDiscriminants(void)
 
 
 /**
+ * Computes s and t that satisfy 2^s * t = n, with t odd.
+ */
+void FactorPow2(mpz_t s, mpz_t t, const mpz_t n)
+{
+  mpz_set_ui(s, 0);
+  mpz_set(t, n);
+  while (mpz_divisible_ui_p(t, 2) && mpz_divisible_ui_p(t, 2) != 0)
+  {
+    mpz_add_ui(s, s, 1);
+    mpz_divexact_ui(t, t, 2);
+  }
+}
+
+/**
  * SquareMod returns the solution x to x^2 === a (mod p) which is used by the
  * ModifiedCornacchia to find the initial square root.
  */
@@ -173,8 +187,88 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
   // Still nothing? Try the hardest case p === 1 (mod 8)
   else
   {
-    // TODO: Implement hardest case!
-    printf("TODO: SquareMod needs case 2 of algorithm 2.3.8\n");
+    // Case 2 of algorithm 
+    mpz_t d, s, t, A, D, m, i;
+    mpz_t anExp1, anExp2, two;
+    
+    mpz_init(d);
+    mpz_init(s);
+    mpz_init(t);
+    mpz_init(A);
+    mpz_init(D);
+    mpz_init(m);
+    mpz_init(i);
+    mpz_init(anExp1);
+    mpz_init(anExp2);
+    mpz_init(two);
+    
+    // Find a random integer d = [2, p - 1] with Jacobi -1
+    mpz_sub_ui(anExp1, theP, 3);
+    do {
+      mpz_urandomm(d, gRandomState, anExp1);
+      mpz_add_ui(d, d, 2);
+    } while (mpz_jacobi(d, theP) != -1);
+    
+    // Represent p - 1 = d ^ s * t, with t odd
+    mpz_sub_ui(anExp1, theP, 1);
+    FactorPow2(s, t, anExp1);
+    
+    // Compute A = a ^ t mod p
+    mpz_powm(A, theA, t, theP);
+
+    // Compute D = d ^ t mode p
+    mpz_powm(D, d, t, theP);
+
+    // Compute m
+    mpz_set_ui(two, 2);
+    mpz_set_ui(m, 0);
+    for (mpz_set_ui(i, 0); mpz_cmp(i, s) < 0; mpz_add_ui(i, i, 1))
+    {
+      // Compute 2 ^ (s - 1 - i)
+      mpz_sub_ui(anExp1, s, 1);
+      mpz_sub(anExp1, anExp1, i);      
+      mpz_powm(anExp1, two, anExp1, theP);
+      
+      // Compute A * D ^ m
+      mpz_mul(anExp2, D, m);
+      mpz_mul(anExp2, anExp2, A);
+
+      // Compute (A * D ^ m) ^ (2 ^ (s - 1 - i))
+      mpz_powm(anExp1, anExp2, anExp1, theP);
+
+      if (mpz_cmp_si(anExp1, -1) != 0)
+      {
+        // Compute m = m + 2 ^ i
+        mpz_powm(anExp1, two, i, theP);
+        mpz_add(m, m, anExp1);
+      }
+    }
+
+    // Compute a ^ ((t + 1) / 2)
+    mpz_add_ui(anExp1, t, 1);
+    mpz_divexact_ui(anExp1, anExp1, 2);
+    mpz_powm(anExp1, theA, anExp1, theP);
+
+    // Compute D ^ (m / 2)
+    mpz_div_ui(anExp2, m, 2);
+    mpz_powm(anExp2, D, anExp2, theP);
+
+    // Compute x = a ^ ((t + 1) / 2) * D ^ (m / 2)
+    mpz_mul(anExp1, anExp1, anExp2);
+    mpz_mod(*theX, anExp1, theP);
+    
+    mpz_clear(d);
+    mpz_clear(s);
+    mpz_clear(t);
+    mpz_clear(A);
+    mpz_clear(D);
+    mpz_clear(m);
+    mpz_clear(i);
+    mpz_clear(anExp1);
+    mpz_clear(anExp2);
+    mpz_clear(two);    
+    
+    anResult = true;
   }
 
   // Clear our temporary variables before returning
