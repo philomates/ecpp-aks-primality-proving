@@ -697,6 +697,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
 
         // Begin DEBUG
         mpz_t tmpG;
+        mpz_init(tmpG);
 
         // tmpG = -g^k mod n
         mpz_pow_ui(tmpG, theG, theK);
@@ -704,6 +705,7 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN, mpz_t& theD, m
         mpz_mod(tmpG, tmpG, theN);
 
         assert(mpz_cmp(*theB, tmpG) == 0);
+        mpz_clear(tmpG);
         // End DEBUG
       }
     }
