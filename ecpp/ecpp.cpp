@@ -755,7 +755,11 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& d, mpz_t& p)
   signed long int D = mpz_get_si(d);
   bool isValid = true;
   mpz_t sqrTmp, tmp, a, m;
-  mpz_inits(sqrTmp, tmp, a, m, NULL);
+
+  mpz_init(sqrTmp);
+  mpz_init(tmp);
+  mpz_init(a);
+  mpz_init(m);
 
   switch(D) {
     case -7:
@@ -1124,7 +1128,10 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
     if(theK < 2 && (find(tmpD, hD1, 9) || find(tmpD, hD2, 17)))
     {
       mpz_t r, s, tmp, tmpG;
-      mpz_inits(r, s, tmp, tmpG, NULL);
+      mpz_init(r);
+      mpz_init(s);
+      mpz_init(tmp);
+      mpz_init(tmpG);
 
       if(LookupCurveParameters(&r, &s, theD, theN)) {
         mpz_mul(*theA, *theA, theG);
@@ -1162,6 +1169,12 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
         mpz_mul(tmp, tmp, tmpG);
 
         mpz_mod(*theB, tmp, theN);
+
+        mpz_clear(tmpG);
+        mpz_clear(tmp);
+        mpz_clear(s);
+        mpz_clear(r);
+
         anResult = true;
         printf("ObtainCurveParameters returned TRUE\n");
       } else {
