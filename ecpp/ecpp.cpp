@@ -19,7 +19,7 @@
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
 const unsigned int MAX_POINTS = 100;
-const unsigned int MAX_PRIMES = 100000;
+const unsigned int MAX_PRIMES = 4294967295U;
 
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
@@ -58,18 +58,17 @@ void InitDiscriminants(void)
   }
 }
 
-
 /**
  * Computes s and t that satisfy 2^s * t = n, with t odd.
  */
-void FactorPow2(mpz_t s, mpz_t t, const mpz_t n)
+void FactorPow2(mpz_t* s, mpz_t* t, mpz_t& n)
 {
-  mpz_set_ui(s, 0);
-  mpz_set(t, n);
-  while (mpz_divisible_ui_p(t, 2) && mpz_divisible_ui_p(t, 2) != 0)
+  mpz_set_ui(*s, 0);
+  mpz_set(*t, n);
+  while (mpz_even_p(*t))
   {
-    mpz_add_ui(s, s, 1);
-    mpz_divexact_ui(t, t, 2);
+    mpz_add_ui(*s, *s, 1);
+    mpz_divexact_ui(*t, *t, 2);
   }
 }
 
@@ -80,210 +79,223 @@ void FactorPow2(mpz_t s, mpz_t t, const mpz_t n)
 bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
 {
   bool anResult = false; // Was a valid X found?
-  mpz_t anMod4;
-  mpz_t anMod8;
-
-  // Initialize some temporary variables
-  mpz_init(anMod4);
-  mpz_init(anMod8);
-
-  // Compute anMod4 first
-  mpz_mod_ui(anMod4, theP, 4);
-
-  // Compute anMod8 next
-  mpz_mod_ui(anMod8, theP, 8);
-
-  // Test the simplest cases p === 3, 7 (mod 8)
-  if(mpz_cmp_ui(anMod4,3) == 0)
+  
+  // Perform the simple Jacobi test.  If Jacobi returns -1 or there is no
+  // solution
+  if(1 == mpz_jacobi(theA, theP))
   {
-    mpz_t anExp;  // The exponent
+    mpz_t anMod4;
+    mpz_t anMod8;
 
-    // Initialize and set the exponent
-    mpz_init_set(anExp, theP);
+    // Initialize some temporary variables
+    mpz_init(anMod4);
+    mpz_init(anMod8);
 
-    // Add 1 to the exponent
-    mpz_add_ui(anExp, anExp, 1);
+    // Compute anMod4 first
+    mpz_mod_ui(anMod4, theP, 4);
 
-    // Divide the exponent by 4
-    mpz_div_ui(anExp, anExp, 4);
-
-    // Compute x = a^(p+1)/4 mod p
-    mpz_powm(*theX, theA, anExp, theP);
-
-    // Clear the exponent
-    mpz_clear(anExp);
-
-    // We found a valid x
-    anResult = true;
-  }
-  // Test the next simplest case p === 5 (mod 8)
-  else if(mpz_cmp_ui(anMod8, 5) == 0)
-  {
-    mpz_t anExp1;  // The exponent (p-1)/4
-    mpz_t anModP;  // Temporary value for second test
-
-    // Initialize and set the exponent
-    mpz_init_set(anExp1, theP);
-    mpz_init(anModP);
-
-    // Subtract from the exponent 1
-    mpz_sub_ui(anExp1, anExp1, 1);
-
-    // Divide the exponent by 4
-    mpz_tdiv_q_ui(anExp1, anExp1, 4);
-
-    // Compute x = a^(p-1)/4 mod p
-    mpz_powm(anModP, theA, anExp1, theP);
-    mpz_mod(anModP, anModP, theP);
-
-    // See if the anModP result is 1
-    if(mpz_cmp_ui(anModP,1) == 0)
+    // Compute anMod8 next
+    mpz_mod_ui(anMod8, theP, 8);
+    
+    // Test the simplest cases p === 3, 7 (mod 8)
+    if(mpz_cmp_ui(anMod4,3) == 0)
     {
-      mpz_t anExp2;  // The exponent (p+3)/8
+      mpz_t anExp;  // The exponent
 
       // Initialize and set the exponent
-      mpz_init_set(anExp2, theP);
+      mpz_init_set(anExp, theP);
 
-      // Add to the exponent 3
-      mpz_add_ui(anExp2, anExp2, 3);
+      // Add 1 to the exponent
+      mpz_add_ui(anExp, anExp, 1);
 
-      // Divide the exponent by 8
-      mpz_tdiv_q_ui(anExp2, anExp2, 8);
+      // Divide the exponent by 4
+      mpz_div_ui(anExp, anExp, 4);
 
-      // Compute x = a^(p+3)/8 mod p
-      mpz_powm(*theX, theA, anExp2, theP);
+      // Compute x = a^(p+1)/4 mod p
+      mpz_powm(*theX, theA, anExp, theP);
+      
+      // Clear the exponent
+      mpz_clear(anExp);
+
+      // We found a valid x
+      anResult = true;
+    }
+    // Test the next simplest case p === 5 (mod 8)
+    else if(mpz_cmp_ui(anMod8, 5) == 0)
+    {
+      mpz_t anExp1;  // The exponent (p-1)/4
+      mpz_t anModP;  // Temporary value for second test
+
+      // Initialize and set the exponent
+      mpz_init_set(anExp1, theP);
+      mpz_init(anModP);
+
+      // Subtract from the exponent 1
+      mpz_sub_ui(anExp1, anExp1, 1);
+
+      // Divide the exponent by 4
+      mpz_tdiv_q_ui(anExp1, anExp1, 4);
+
+      // Compute x = a^(p-1)/4 mod p
+      mpz_powm(anModP, theA, anExp1, theP);
+      mpz_mod(anModP, anModP, theP);
+
+      // See if the anModP result is 1
+      if(mpz_cmp_ui(anModP,1) == 0)
+      {
+        mpz_t anExp2;  // The exponent (p+3)/8
+
+        // Initialize and set the exponent
+        mpz_init_set(anExp2, theP);
+
+        // Add to the exponent 3
+        mpz_add_ui(anExp2, anExp2, 3);
+
+        // Divide the exponent by 8
+        mpz_tdiv_q_ui(anExp2, anExp2, 8);
+
+        // Compute x = a^(p+3)/8 mod p
+        mpz_powm(*theX, theA, anExp2, theP);
+
+        // Clear our values we don't need anymore
+        mpz_clear(anExp2);
+      }
+      else
+      {
+        mpz_t anExp2;  // The exponent (p-5)/8
+        mpz_t anBase;  // The base a*4
+
+        // Initialize and set the exponent
+        mpz_init_set(anExp2, theP);
+        mpz_init(anBase);
+
+        // Subtract from the exponent 5
+        mpz_sub_ui(anExp2, anExp2, 5);
+
+        // Divide the exponent by 8
+        mpz_tdiv_q_ui(anExp2, anExp2, 8);
+
+        // Compute 4*a as the base
+        mpz_mul_ui(anBase, theA, 4);
+
+        // Compute x = 4*a^(p-5)/8 mod p
+        mpz_powm(anBase, anBase, anExp2, theP);
+
+        // Multiply the result by 2*a*x mod p
+        mpz_mul_ui(anBase, anBase, 2);
+        mpz_mul(anBase, anBase, theA);
+        mpz_mod(*theX, anBase, theP);
+
+        // Clear our values we don't need anymore
+        mpz_clear(anBase);
+        mpz_clear(anExp2);
+      }
 
       // Clear our values we don't need anymore
-      mpz_clear(anExp2);
+      mpz_clear(anModP);
+      mpz_clear(anExp1);
+
+      // We found a valid x
+      anResult = true;
     }
+    // Still nothing? Try the hardest case p === 1 (mod 8)
     else
     {
-      mpz_t anExp2;  // The exponent (p-5)/8
-      mpz_t anBase;  // The base a*4
+      // Case 2 of algorithm
+      mpz_t d, s, t, A, D, m, i;
+      mpz_t anExp1, anExp2, anModP, two;
 
-      // Initialize and set the exponent
-      mpz_init_set(anExp2, theP);
-      mpz_init(anBase);
+      mpz_init(d);
+      mpz_init(s);
+      mpz_init(t);
+      mpz_init(A);
+      mpz_init(D);
+      mpz_init(m);
+      mpz_init(i);
+      mpz_init(anExp1);
+      mpz_init(anExp2);
+      mpz_init(anModP);
+      mpz_init(two);
 
-      // Subtract from the exponent 5
-      mpz_sub_ui(anExp2, anExp2, 5);
+      // Find a random integer d = [2, p - 1] with Jacobi -1
+      mpz_sub_ui(anExp1, theP, 3);
+      do {
+        mpz_urandomm(d, gRandomState, anExp1);
+        mpz_add_ui(d, d, 2);
+      } while (mpz_jacobi(d, theP) != -1);
+      
+      // Represent p - 1 = 2 ^ s * t, with t odd
+      mpz_sub_ui(anExp1, theP, 1);
+      FactorPow2(&s, &t, anExp1);
 
-      // Divide the exponent by 8
-      mpz_tdiv_q_ui(anExp2, anExp2, 8);
+      // Compute A = a ^ t mod p
+      mpz_powm(A, theA, t, theP);
 
-      // Compute 4*a as the base
-      mpz_mul_ui(anBase, theA, 4);
+      // Compute D = d ^ t mod p
+      mpz_powm(D, d, t, theP);
 
-      // Compute x = 4*a^(p-5)/8 mod p
-      mpz_powm(anBase, anBase, anExp2, theP);
-
-      // Multiply the result by 2*a*x mod p
-      mpz_mul_ui(anBase, anBase, 2);
-      mpz_mul(anBase, anBase, theA);
-      mpz_mod(*theX, anBase, theP);
-
-      // Clear our values we don't need anymore
-      mpz_clear(anBase);
-      mpz_clear(anExp2);
-    }
-
-    // Clear our values we don't need anymore
-    mpz_clear(anModP);
-    mpz_clear(anExp1);
-
-    // We found a valid x
-    anResult = true;
-  }
-  // Still nothing? Try the hardest case p === 1 (mod 8)
-  else
-  {
-    // Case 2 of algorithm
-    mpz_t d, s, t, A, D, m, i;
-    mpz_t anExp1, anExp2, two;
-
-    mpz_init(d);
-    mpz_init(s);
-    mpz_init(t);
-    mpz_init(A);
-    mpz_init(D);
-    mpz_init(m);
-    mpz_init(i);
-    mpz_init(anExp1);
-    mpz_init(anExp2);
-    mpz_init(two);
-
-    // Find a random integer d = [2, p - 1] with Jacobi -1
-    mpz_sub_ui(anExp1, theP, 3);
-    do {
-      mpz_urandomm(d, gRandomState, anExp1);
-      mpz_add_ui(d, d, 2);
-    } while (mpz_jacobi(d, theP) != -1);
-
-    // Represent p - 1 = d ^ s * t, with t odd
-    mpz_sub_ui(anExp1, theP, 1);
-    FactorPow2(s, t, anExp1);
-
-    // Compute A = a ^ t mod p
-    mpz_powm(A, theA, t, theP);
-
-    // Compute D = d ^ t mode p
-    mpz_powm(D, d, t, theP);
-
-    // Compute m
-    mpz_set_ui(two, 2);
-    mpz_set_ui(m, 0);
-    for (mpz_set_ui(i, 0); mpz_cmp(i, s) < 0; mpz_add_ui(i, i, 1))
-    {
-      // Compute 2 ^ (s - 1 - i)
-      mpz_sub_ui(anExp1, s, 1);
-      mpz_sub(anExp1, anExp1, i);
-      mpz_powm(anExp1, two, anExp1, theP);
-
-      // Compute A * D ^ m
-      mpz_mul(anExp2, D, m);
-      mpz_mul(anExp2, anExp2, A);
-
-      // Compute (A * D ^ m) ^ (2 ^ (s - 1 - i))
-      mpz_powm(anExp1, anExp2, anExp1, theP);
-
-      if (mpz_cmp_si(anExp1, -1) != 0)
+      // Compute -1 mod p
+      mpz_sub_ui(anModP, theP, 1);
+      
+      // Compute m
+      mpz_set_ui(two, 2);
+      mpz_set_ui(m, 0);
+      for (mpz_set_ui(i, 0); mpz_cmp(i, s) < 0; mpz_add_ui(i, i, 1))
       {
-        // Compute m = m + 2 ^ i
-        mpz_powm(anExp1, two, i, theP);
-        mpz_add(m, m, anExp1);
+        // Compute 2 ^ (s - 1 - i)
+        mpz_sub_ui(anExp1, s, 1);
+        mpz_sub(anExp1, anExp1, i);
+        mpz_powm(anExp1, two, anExp1, theP);
+
+        // Compute A * D ^ m
+        mpz_powm(anExp2, D, m, theP);
+        mpz_mul(anExp2, anExp2, A);
+        mpz_mod(anExp2, anExp2, theP);
+
+        // Compute (A * D ^ m) ^ (2 ^ (s - 1 - i))
+        mpz_powm(anExp1, anExp2, anExp1, theP);
+
+        if (mpz_cmp(anExp1, anModP) == 0)
+        {
+          // Compute m = m + 2 ^ i
+          mpz_powm(anExp1, two, i, theP);
+          mpz_add(m, m, anExp1);
+        }
       }
+
+      // Compute a ^ ((t + 1) / 2)
+      mpz_add_ui(anExp1, t, 1);
+      mpz_divexact_ui(anExp1, anExp1, 2);
+      mpz_powm(anExp1, theA, anExp1, theP);
+
+      // Compute D ^ (m / 2)
+      mpz_div_ui(anExp2, m, 2);
+      mpz_powm(anExp2, D, anExp2, theP);
+      
+      // Compute x = a ^ ((t + 1) / 2) * D ^ (m / 2) mod p
+      mpz_mul(anExp1, anExp1, anExp2);
+      mpz_mod(anExp1, anExp1, theP);
+      mpz_set(*theX, anExp1);
+      
+      mpz_clear(two);
+      mpz_clear(anModP);
+      mpz_clear(anExp2);
+      mpz_clear(anExp1);
+      mpz_clear(i);
+      mpz_clear(m);
+      mpz_clear(D);
+      mpz_clear(A);
+      mpz_clear(t);
+      mpz_clear(s);
+      mpz_clear(d);
+
+      anResult = true;
     }
 
-    // Compute a ^ ((t + 1) / 2)
-    mpz_add_ui(anExp1, t, 1);
-    mpz_divexact_ui(anExp1, anExp1, 2);
-    mpz_powm(anExp1, theA, anExp1, theP);
-
-    // Compute D ^ (m / 2)
-    mpz_div_ui(anExp2, m, 2);
-    mpz_powm(anExp2, D, anExp2, theP);
-
-    // Compute x = a ^ ((t + 1) / 2) * D ^ (m / 2)
-    mpz_mul(anExp1, anExp1, anExp2);
-    mpz_mod(*theX, anExp1, theP);
-
-    mpz_clear(d);
-    mpz_clear(s);
-    mpz_clear(t);
-    mpz_clear(A);
-    mpz_clear(D);
-    mpz_clear(m);
-    mpz_clear(i);
-    mpz_clear(anExp1);
-    mpz_clear(anExp2);
-    mpz_clear(two);
-
-    anResult = true;
+    // Clear our temporary variables before returning
+    mpz_clear(anMod8);
+    mpz_clear(anMod4);
   }
-
-  // Clear our temporary variables before returning
-  mpz_clear(anMod8);
-  mpz_clear(anMod4);
 
   // If no valid result was found, then set theX to 0
   if(false == anResult)
@@ -335,7 +347,7 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     mpz_mod_ui(xt, x0, 2);
 
     // If x0^2 !=== D (mod 2) then adjust x0
-    if(dt != xt)
+    if(mpz_cmp(dt,xt) != 0)
     {
       mpz_sub(x0, theP, x0);
     }
@@ -518,7 +530,8 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
 
   // Loop through each prime number from 2 up and remove each
   // of these from theQ
-  do {
+  do 
+  {
     // Remove as many of this prime as possible
     mpz_remove(*theQ, *theQ, prime);
 
@@ -526,10 +539,16 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
     mpz_nextprime(prime, prime);
 
     // Is theQ prime now? then exit our loop
-    if(mpz_probab_prime_p(theM, 10))
+    if(mpz_probab_prime_p(*theQ, 10))
       break;
   } while(mpz_cmp(*theQ, theT) >= 0 && count-- > 0);
 
+  // Let the user know that our FindFactors algorithm might have failed!
+  if(count == 0)
+  {
+    gmp_printf("Warning q might not be prime! q=%Zd\n", *theQ);
+  }
+  
   // Clear our prime value used above
   mpz_clear(prime);
 
@@ -1022,6 +1041,7 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& d, mpz_t& p)
   // keep things mod p
   mpz_mod(*r, *r, p);
   mpz_mod(*s, *s, p);
+  printf("r=%Zd s=%Zd\n", *r, *s);
 
   // clean up
   mpz_clear(sqrTmp);
@@ -1526,8 +1546,6 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, 
   // Did we have an illegal inversion?
   if(anComposite)
   {
-    gmp_printf("U=[m/q]P gave an illegal conversion!\n");
-
     anResult = -1; // Illegal inversion occurred, N is composite
   }
   // Make sure U != O (infinity point) before calculating V
@@ -1605,13 +1623,17 @@ bool AtkinMorain(mpz_t& theN)
 
   // Loop through each discriminant in the gD array or until our anDone value
   // is set to true.
-  do
+  while(!anDone && anIndexD+1 < MAX_DISCRIMINANTS)
   {
-    // Step 0: Use Miller-Rabbin to test if theN is composite since there is
+    // Step 0: Use Miller-Rabin to test if theN is composite since there is
     // no guarrentee that ECPP will successfully find a u and v in Step 1, but
-    // Miller-Rabbin guarrentees to find all composites quickly.
-    if(mpz_probab_prime_p(n, 10) == 0)
+    // Miller-Rabin guarrentees to find all composites quickly.
+    int anMillerRabin = mpz_probab_prime_p(n, 10);
+
+    // Did Miller-Rabin prove n is composite?
+    if(anMillerRabin == 0)
     {
+      printf("Miller-Rabin says n is composite!\n");
       // N is composite
       anResult = false;
 
@@ -1621,6 +1643,22 @@ bool AtkinMorain(mpz_t& theN)
       // Exit the discriminant loop
       break;
     }
+    // Did Miller-Rabin prove n is prime?
+    else if(anMillerRabin == 2)
+    {
+      // N is proven prime
+      anResult = true;
+      
+      // We are done
+      anDone = true;
+      
+      // Exit the discriminant loop
+      break;
+    }
+    else
+    {
+      // Continue with Atkin-Morain algorithm to prove n is prime or composite
+    }
 
     // Step 1: ChooseDiscriminant will attempt to find a discriminant D that
     // satisfies steps 1a, 1b, and step 2 by incrementing through each
@@ -1629,11 +1667,6 @@ bool AtkinMorain(mpz_t& theN)
     anIndexD++;
 
     // Step 1a: Find a discriminant that yields a Jacobi(D,N) == 1
-
-    // XXX: I added this check in because when gD[i] is 0 segfaults occured
-    if(mpz_cmp_ui(gD[anIndexD],0) == 0)
-      continue;
-
     if(1 != mpz_jacobi(gD[anIndexD],n))
       continue; // Jacobi returned -1 or 0, try another discriminant
 
@@ -1648,6 +1681,7 @@ bool AtkinMorain(mpz_t& theN)
     // a new discriminant D and curve m.
     if(false == FactorOrders(&m, &q, u, v, n, gD[anIndexD]))
       continue; // No factor q or curve m was found, try another discriminant
+    gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n", gD[anIndexD], u, v, m, q);
 
     // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
     // g mod p and if D=-3 a noncube g^3 mod p for use in step 4b
@@ -1667,13 +1701,17 @@ bool AtkinMorain(mpz_t& theN)
       while(!anDone && k < 6 &&
         ObtainCurveParameters(&a, &b, n, gD[anIndexD], g, k))
       {
+        gmp_printf("Step 4: a=%Zd, b=%Zd\n", a, b);
+
         // Step 5: ChoosePoint will try and find a point (x,y) on the curve
         // using the a and b values provided from above.
         anDone = ChoosePoint(&P,n,a,b);
+        gmp_printf("Step 5: P(%Zd,%Zd)\n", P.x, P.y);
 
         // Did we find that N is composite while choosing a point?
         if(anDone)
         {
+          printf("ChoosePoint returned true!\n");
           // N is composite
           anResult = false;
 
@@ -1686,11 +1724,10 @@ bool AtkinMorain(mpz_t& theN)
         // be proven prime to prove that N is prime.
         int anTest = EvaluatePoint(&U, &V, P, n, m, q, a, b);
 
-        gmp_printf("test=%d U(%Zd,%Zd) V(%Zd,%Zd)\n", anTest, U.x, U.y, V.x, V.y);
-
         // Did EvaluatePoint determine N was composite?
         if(anTest < 0)
         {
+          printf("EvaluatePoint returned < 0!\n");
           // N is composite
           anResult = false;
 
@@ -1746,7 +1783,13 @@ bool AtkinMorain(mpz_t& theN)
       points += k;
 
     } while(!anDone && points < MAX_POINTS);
-  } while(!anDone && anIndexD <= MAX_DISCRIMINANTS);
+  }
+  
+  // Warn the user that we ran out of discriminants before finding answer
+  if(false == anDone && anIndexD+1 == MAX_DISCRIMINANTS)
+  {
+    printf("Atkin-Morain proof inconclusive, ran out of discriminants!\n");
+  }
 
   // Clear our values used above
   mpz_clear(V.y);
@@ -1768,36 +1811,33 @@ bool AtkinMorain(mpz_t& theN)
   return anResult;
 }
 
-
 int main(int argc, char* argv[])
 {
-
   mpz_t anNumber;  // Number to be tested for Primality
-
+  
   // Initialize our random generator first
   gmp_randinit_default(gRandomState);
 
   // Seed our random generator using the clock
   gmp_randseed_ui(gRandomState, time(0));
 
+  // Initialize our fixed list of discriminants
   InitDiscriminants();
 
+  // Initialize our number
   mpz_init(anNumber);
-
+  
   // Get the number to test
-  //cin >> anNumber;
-
-  // Try test number of 2^89 - 1 which is prime
-  mpz_ui_pow_ui(anNumber, 2, 89);
-  mpz_sub_ui(anNumber, anNumber, 1);
-
+  gmp_scanf("%Zd", &anNumber);
+  
+  // Use Atkin-Morain to determine if the number is prime
   if(false == AtkinMorain(anNumber))
   {
-    printf("N is composite\n");
+    printf("composite\n");
   }
   else
   {
-    printf("N is prime\n");
+    printf("proven prime\n");
   }
 
   // Clear the number before exiting the program
