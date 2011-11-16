@@ -14,8 +14,6 @@
 #include <gmp.h>
 #include <assert.h>
 
-#include "utils.h"
-
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
 const unsigned int MAX_POINTS = 100;
@@ -24,11 +22,6 @@ const unsigned int MAX_PRIMES = 4294967295U;
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
 mpz_t gD[MAX_DISCRIMINANTS];
-
-// class numbers for discriminants (Pg. 361)
-int hD1[] = {-3, -4, -7, -8, -11, -19, -43, -67, -163};
-int hD2[] = {-15, -20, -24, -35, -40, -51, -52, -88, -91, -115, -123, -148,
-             -187, -232, -267, -403, -427};
 
 // Point structure
 struct Point
@@ -43,9 +36,11 @@ struct Point
  */
 void InitDiscriminants(void)
 {
-  int32_t anD[MAX_DISCRIMINANTS] = {0,-3,-4,-7,-8,-11,-19,-43,-67,-163,-15,-20,
-                                    -24,-35,-40,-51,-52,-88,-91,-115,-123,-148,
-                                    -187,-232,-235,-267,-403,-427};
+  int32_t anD[MAX_DISCRIMINANTS] = {
+  /* Place holder */ 0, 
+  /* Class 1 */ -3,-4,-7,-8,-11,-19,-43,-67,-163,
+  /* Class 2 */ -15,-20,-24,-35,-40,-51,-52,-88,-91,-115,-123,-148,-187,-232,
+                -235,-267,-403,-427};
 
   // Call mpz_init on each array element and assign its value
   for(unsigned int i=0;i<MAX_DISCRIMINANTS;i++)
@@ -546,7 +541,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   // Let the user know that our FindFactors algorithm might have failed!
   if(count == 0)
   {
-    gmp_printf("Warning q might not be prime! q=%Zd\n", *theQ);
+    printf("Warning q might not be prime!\n");
   }
   
   // Clear our prime value used above
@@ -569,7 +564,8 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
  * done after K_max iterations than return FALSE and choose a new discriminant
  * D and curve m.
  */
-bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV, mpz_t& theN, mpz_t& theD)
+bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
+                  mpz_t& theN, mpz_t& theD)
 {
   bool anResult = false;  // Was factor theQ found?
   mpz_t t;  // t = (n^0.25 + 1)^2 to test theQ with
@@ -769,17 +765,17 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
 }
 
 // Lookup Table 7.1
-bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& d, mpz_t& p)
+bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
 {
   signed long int D = mpz_get_si(d);
   bool isValid = true;
-  mpz_t sqrTmp, tmp, a, m;
+  mpz_t tmp1, tmp2;
 
-  mpz_init(sqrTmp);
-  mpz_init(tmp);
-  mpz_init(a);
-  mpz_init(m);
+  // Initialize our temporary variables
+  mpz_init(tmp1);
+  mpz_init(tmp2);
 
+  // Find the discriminant in our table of class 1 and 2 discriminants
   switch(D) {
     case -7:
       mpz_set_ui(*r, 125);
@@ -806,249 +802,177 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& d, mpz_t& p)
       mpz_set_ui(*s, 85184001);
       break;
     case -163:
-      gmp_sscanf("151931373056000", "%Z", *r);
-      gmp_sscanf("151931373056001", "%Z", *s);
+      mpz_set_str(*r, "151931373056000", 10);
+      mpz_set_str(*s, "151931373056001", 10);
       break;
     case -15:
       // 1225 - 2080 * sqrt(5)
-      mpz_set_ui(a, 5);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -2080);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 1225);
-
+      mpz_set_ui(tmp1, 5);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 1225);
       mpz_set_ui(*s, 5929);
+      mpz_submul_ui(*r, tmp1, 2080);
       break;
     case -20:
       // 108250 + 29835 * sqrt(5)
-      mpz_set_ui(a, 5);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_ui(tmp, 29835);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 108250);
-
+      mpz_set_ui(tmp1, 5);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 108250);
       mpz_set_ui(*s, 174724);
+      mpz_addmul_ui(*r, tmp1, 29835);
       break;
     case -24:
       // 1757 - 494 * sqrt(2)
-      mpz_set_ui(a, 2);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -494);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 1757);
-
+      mpz_set_ui(tmp1, 2);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 1757);
       mpz_set_ui(*s, 1058);
+      mpz_submul_ui(*r, tmp1, 494);
       break;
     case -35:
       // -1126400 - 1589760 * sqrt(5)
-      mpz_set_ui(a, 5);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -1589760);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_sub_ui(*r, tmp, 1126400);
-
+      mpz_set_ui(tmp1, 5);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_si(*r, -1126400);
       mpz_set_ui(*s, 2428447);
+      mpz_submul_ui(*r, tmp1, 1589760);
       break;
     case -40:
       // 54175 - 1020 * sqrt(5)
-      mpz_set_ui(a, 5);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -1020);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 54175);
-
+      mpz_set_ui(tmp1, 5);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 54175);
       mpz_set_ui(*s, 51894);
+      mpz_submul_ui(*r, tmp1, 1020);
       break;
     case -51:
       // 75520 - 7936 * sqrt(5)
-      mpz_set_ui(a, 17);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -7936);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 75520);
-
+      mpz_set_ui(tmp1, 17);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 75520);
       mpz_set_ui(*s, 108241);
+      mpz_submul_ui(*r, tmp1, 7936);
       break;
     case -52:
       // 1778750 + 5125 * sqrt(13)
-      mpz_set_ui(a, 13);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_ui(tmp, 5125);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 1778750);
-
+      mpz_set_ui(tmp1, 13);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 1778750);
       mpz_set_ui(*s, 1797228);
+      mpz_addmul_ui(*r, tmp1, 5125);
       break;
     case -88:
       // 181713125 - 44250  * sqrt(2)
-      mpz_set_ui(a, 2);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -44250);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 181713125);
-
+      mpz_set_ui(tmp1, 2);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 181713125);
       mpz_set_ui(*s, 181650546);
+      mpz_submul_ui(*r, tmp1, 44250);
       break;
     case -91:
       // 74752 - 36352 * sqrt(13)
-      mpz_set_ui(a, 13);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -36352);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 74752);
-
+      mpz_set_ui(tmp1, 13);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 74752);
       mpz_set_ui(*s, 205821);
+      mpz_submul_ui(*r, tmp1, 36352);
       break;
     case -115:
       // 269593600 - 89157120  * sqrt(5)
-      mpz_set_ui(a, 13);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      mpz_set_si(tmp, -89157120);
-
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      mpz_add_ui(*r, tmp, 269593600);
-
+      mpz_set_ui(tmp1, 13);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_ui(*r, 269593600);
       mpz_set_ui(*s, 468954981);
+      mpz_submul_ui(*r, tmp1, 89157120);
       break;
     case -123:
       // 1025058304000 - 1248832000 * sqrt(41)
-      mpz_set_ui(a, 41);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      gmp_sscanf("-1248832000", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("1025058304000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("1033054730449", "%Z", *s);
+      mpz_set_ui(tmp1, 41);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "1025058304000", 10);
+      mpz_set_str(*s, "1033054730449", 10);
+      mpz_submul_ui(*r, tmp1, 1248832000);
       break;
     case -148:
-      // 499833128054750 - 356500625 * sqrt(37)
-      mpz_set_ui(a, 37);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      gmp_sscanf("-356500625", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("499833128054750", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("499835296563372", "%Z", *s);
+      // 499833128054750 + 356500625 * sqrt(37)
+      mpz_set_ui(tmp1, 37);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "499833128054750", 10);
+      mpz_set_str(*s, "499835296563372", 10);
+      mpz_addmul_ui(*r, tmp1, 356500625);
       break;
     case -187:
       // 91878880000 - 1074017568000 * sqrt(17)
-      mpz_set_ui(a, 17);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      gmp_sscanf("-1074017568000", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("91878880000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("4520166756633", "%Z", *s);
+      mpz_set_ui(tmp1, 17);
+      mpz_set_str(tmp2, "1074017568000", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "91878880000", 10);
+      mpz_set_str(*s, "4520166756633", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
     case -232:
       // 1728371226151263375 - 11276414500 * sqrt(29)
-      mpz_set_ui(a, 29);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      gmp_sscanf("-11276414500", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("1728371226151263375", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("1728371165425912854", "%Z", *s);
+      mpz_set_ui(tmp1, 29);
+      mpz_set_str(tmp2, "11276414500", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "1728371226151263375", 10);
+      mpz_set_str(*s, "1728371165425912854", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
     case -235:
       // 7574816832000 - 190341944320 * sqrt(5)
-      mpz_set_ui(a, 5);
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-      gmp_sscanf("-190341944320", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("7574816832000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("8000434358469", "%Z", *s);
+      mpz_set_ui(tmp1, 5);
+      mpz_set_str(tmp2, "190341944320", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "7574816832000", 10);
+      mpz_set_str(*s, "8000434358469", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
-
     case -267:
       // 3632253349307716000000 - 12320504793376000 * sqrt(89)
-      mpz_set_ui(a, 89);
-
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-
-      gmp_sscanf("-12320504793376000", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("3632253349307716000000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("3632369580717474122449", "%Z", *s);
+      mpz_set_ui(tmp1, 89);
+      mpz_set_str(tmp2, "12320504793376000", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "3632253349307716000000", 10);
+      mpz_set_str(*s, "3632369580717474122449", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
-
     case -403:
       // 16416107434811840000 - 4799513373120384000 * sqrt(13)
-      mpz_set_ui(a, 13);
-
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-
-      gmp_sscanf("-4799513373120384000", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("16416107434811840000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("33720998998872514077", "%Z", *s);
+      mpz_set_ui(tmp1, 13);
+      mpz_set_str(tmp2, "4799513373120384000", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "16416107434811840000", 10);
+      mpz_set_str(*s, "33720998998872514077", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
-
     case -427:
       // 564510997315289728000 - 5784785611102784000 * sqrt(61)
-      mpz_set_ui(a, 61);
-
-      if(!SquareMod(&sqrTmp, a, p)) { isValid = false; break; }
-
-      gmp_sscanf("-5784785611102784000", "%Z", tmp);
-      mpz_mul(tmp, tmp, sqrTmp);
-
-      gmp_sscanf("564510997315289728000", "%Z", m);
-
-      mpz_add(*r, tmp, m);
-
-      gmp_sscanf("609691617259594724421", "%Z", *s);
+      mpz_set_ui(tmp1, 61);
+      mpz_set_str(tmp2, "5784785611102784000", 10);
+      isValid = SquareMod(&tmp1, tmp1, p);
+      mpz_set_str(*r, "564510997315289728000", 10);
+      mpz_set_str(*s, "609691617259594724421", 10);
+      mpz_submul(*r, tmp1, tmp2);
       break;
-
     default:
       isValid = false;
+      break;
   }
 
-  // keep things mod p
-  mpz_mod(*r, *r, p);
-  mpz_mod(*s, *s, p);
-  printf("r=%Zd s=%Zd\n", *r, *s);
+  // Did we set an r and s value above?
+  if(isValid)
+  {  
+    // keep things mod p
+    mpz_mod(*r, *r, p);
+    mpz_mod(*s, *s, p);
+  }
 
-  // clean up
-  mpz_clear(sqrTmp);
-  mpz_clear(tmp);
-  mpz_clear(a);
-  mpz_clear(m);
+  // Clear our temporary variables used above
+  mpz_clear(tmp2);
+  mpz_clear(tmp1);
 
+  // Return true if *r and *s were set above
   return isValid;
 }
 
@@ -1143,69 +1067,67 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
   }
   else
   {
-    // If theK < 2 and theD has a class number of 1 or 2, use table for lookup
-    signed long int tmpD = mpz_get_si(theD);
-    if(theK < 2 && (find(tmpD, hD1, 9) || find(tmpD, hD2, 17)))
-    {
-      mpz_t r, s, tmp, tmpG;
-      mpz_init(r);
-      mpz_init(s);
-      mpz_init(tmp);
-      mpz_init(tmpG);
-
-      if(LookupCurveParameters(&r, &s, theD, theN)) {
-        mpz_mul(*theA, *theA, theG);
-
-        mpz_set_ui(*theB, 0);
-
-        // Compute A
-        // s^3
-        mpz_pow_ui(tmp, s, 3);
-
-        // * r
-        mpz_mul(tmp, tmp, r);
-
-        // * -3
-        mpz_mul_si(tmp, tmp, -3);
-
-        // g^(2*k)
-        mpz_pow_ui(tmpG, theG, 2*theK);
-        mpz_mul(tmp, tmp, tmpG);
-
-        mpz_mod(*theA, tmp, theN);
-
-        // Compute B
-        // s^5
-        mpz_pow_ui(tmp, s, 5);
-
-        // * r
-        mpz_mul(tmp, tmp, r);
-
-        // * 2
-        mpz_mul_si(tmp, tmp, 2);
-
-        // g^(3*k)
-        mpz_pow_ui(tmpG, theG, 3*theK);
-        mpz_mul(tmp, tmp, tmpG);
-
-        mpz_mod(*theB, tmp, theN);
-
-        mpz_clear(tmpG);
-        mpz_clear(tmp);
-        mpz_clear(s);
-        mpz_clear(r);
-
-        anResult = true;
-        printf("ObtainCurveParameters returned TRUE\n");
-      } else {
-        printf("ObtainCurveParameters returned FALSE\n");
-        anResult = false;
-      }
-    }
-    else
+    // If theK >= 2 then no curve parameters will be returned
+    if(theK >= 2)
     {
       // No curve parameters available, try another discriminant
       anResult = false;
+    }
+    // Case 1: k==0, call LookupCurveParameters to obtain the r and s values
+    else if(theK == 0)
+    {
+      mpz_t r; // r value returned by LookupCurveParameters
+      mpz_t s; // s value returned by LookupCurveParameters
+      
+      // Initialize our r and s values before calling LookupCurveParameters
+      mpz_init(r);
+      mpz_init(s);
+
+      // Determine if theD can be found by LookupCurveParameters
+      anResult = LookupCurveParameters(&r, &s, theN, theD);
+      
+      // Did LookupCurveParameters yield an r and s value?
+      if(anResult)
+      {
+        // Compute a = -3rs^3g^(2k) with k==0
+        mpz_pow_ui(*theA, s, 3);
+        mpz_mul(*theA, *theA, r);
+        mpz_mul_ui(*theA, *theA, -3);
+        mpz_mod(*theA, *theA, theN);
+
+        // Compute b = 2rs^5g^(3k) with k==0
+        mpz_pow_ui(*theB, s, 5);
+        mpz_mul(*theB, *theB, r);
+        mpz_mul_ui(*theB, *theB, 2);
+        mpz_mod(*theB, *theB, theN);
+      }
+
+      // Clear our r and s values provided by LookupCurveParameters
+      mpz_clear(s);
+      mpz_clear(r);
+    }
+    // Case 2: k==1, just multiply previous a and b values with g provided
+    else
+    {
+      mpz_t tmpG; // g^2 value used in both multiplications below
+      
+      // Initialize our temporary g^2 value
+      mpz_init(tmpG);
+
+      // Compute g^2 which is used for both a and b below
+      mpz_pow_ui(tmpG, theG, 2);
+      
+      // Compute a = a*g^(2k) with k==1
+      mpz_mul(*theA, *theA, tmpG);
+      mpz_mod(*theA, *theA, theN);
+
+      // Compute b = b*g^(3k) with k==1
+      mpz_mul(*theB, *theB, tmpG);
+      mpz_mul(*theB, *theB, theG);
+      mpz_mod(*theB, *theB, theN);
+
+      // Clear our temporary g^2 value
+      mpz_clear(tmpG);
     }
   }
 
@@ -1279,7 +1201,8 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
  * will return true if an illegal inversion occurred and will not set theR
  * unless the inversion succeeded.
  */
-bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2, mpz_t& theN)
+bool Add(struct Point* theR, struct Point& theP1, struct Point& theP2,
+         mpz_t& theN)
 {
   bool anResult = false;  // True if illegal inversion occurred
   mpz_t m;  // Elliptic slope value m
@@ -1413,7 +1336,8 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
  * algorithm (7.2.4). This will return true if an illegal inversion occurred
  * during one of the Elliptical add method calls.
  */
-bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz_t& theA)
+bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN,
+              mpz_t& theA)
 {
   bool anResult = false;  // True if illegal inversion occurred
 
@@ -1525,7 +1449,8 @@ bool Multiply(struct Point* theR, mpz_t& theM, struct Point& P, mpz_t& theN, mpz
  * another point should be tested, or 1 if N is found to be prime if Q is
  * proven to be prime during the next iteration.
  */
-int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM, mpz_t& theQ, mpz_t& theA, mpz_t& theB)
+int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM,
+                  mpz_t& theQ, mpz_t& theA, mpz_t& theB)
 {
   int anResult = 0;  // Assume that we will need another point
   bool anComposite = false;  // True if Multiply returns an illegal inversion
@@ -1631,7 +1556,7 @@ bool AtkinMorain(mpz_t& theN)
     int anMillerRabin = mpz_probab_prime_p(n, 10);
 
     // Did Miller-Rabin prove n is composite?
-    if(anMillerRabin == 0)
+    if(0 == anMillerRabin)
     {
       printf("Miller-Rabin says n is composite!\n");
       // N is composite
@@ -1644,7 +1569,7 @@ bool AtkinMorain(mpz_t& theN)
       break;
     }
     // Did Miller-Rabin prove n is prime?
-    else if(anMillerRabin == 2)
+    else if(2 == anMillerRabin)
     {
       // N is proven prime
       anResult = true;
@@ -1672,14 +1597,14 @@ bool AtkinMorain(mpz_t& theN)
 
     // Step 1b: Find a u and v that satisfies 4n = u^2 + ABS(D)v^2 using the
     // modified Cornacchia algorithm (2.3.13)
-    if(false == ModifiedCornacchia(&u, &v, n, gD[anIndexD]))
+    if(!ModifiedCornacchia(&u, &v, n, gD[anIndexD]))
       continue; // No solution found, u and v not set, try another discriminant
 
-    // Step 2: FactorOrders attempts to find a possible order m that factors
+    // Step 2/3: FactorOrders attempts to find a possible order m that factors
     // as m = kq where k > 1 and q is a probable prime > (n^0.25 + 1)^2. If
     // this can't be done after K_max iterations than return FALSE and choose
     // a new discriminant D and curve m.
-    if(false == FactorOrders(&m, &q, u, v, n, gD[anIndexD]))
+    if(!FactorOrders(&m, &q, u, v, n, gD[anIndexD]))
       continue; // No factor q or curve m was found, try another discriminant
     gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n", gD[anIndexD], u, v, m, q);
 
@@ -1696,10 +1621,9 @@ bool AtkinMorain(mpz_t& theN)
       // parameters a and b for an elliptic curve that would have order m if n
       // is indeed prime.
 
-      // Loop through each valid a and b values of this curve
+      // Loop through this curves valid a and b values (k iterates over them)
       unsigned int k = 0;
-      while(!anDone && k < 6 &&
-        ObtainCurveParameters(&a, &b, n, gD[anIndexD], g, k))
+      while(!anDone && ObtainCurveParameters(&a, &b, n, gD[anIndexD], g, k))
       {
         gmp_printf("Step 4: a=%Zd, b=%Zd\n", a, b);
 
@@ -1763,9 +1687,6 @@ bool AtkinMorain(mpz_t& theN)
           // Exit the points loop
           points = MAX_POINTS;
 
-          // TEST TEST TEST, exit the D loop
-          //anDone = true;
-
           // Exit the ObtainCurveParameters loop
           break;
         }
@@ -1777,11 +1698,10 @@ bool AtkinMorain(mpz_t& theN)
 
         // Increment our k value
         k++;
-      } // while(!anDone && k < 6 && ObtainCurveParameters(&a,&b,...) == true)
+      } // while(!anDone && ObtainCurveParameters(&a,&b,...))
 
       // Increment points for every k (a and b) tested
       points += k;
-
     } while(!anDone && points < MAX_POINTS);
   }
   

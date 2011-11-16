@@ -1,22 +1,21 @@
-CXX=gcc
+CC=gcc
+CXX=g++
 INCLUDE=-I/opt/local/include
-LIBS=-L/opt/local/lib -lgmp
+CC_LIBS=-L/opt/local/lib -lgmp
+CXX_LIBS=-L/opt/local/lib -lgmpxx -lgmp
 
 all: ecpp atkin
 
 .PHONY: clean
 
-utils.o: utils.cpp utils.h
-	$(CXX) -c $<
-
-ecpp: ecpp.cpp utils.o
-	$(CXX) $(INCLUDE) $(LIBS) -o ecpp ecpp.cpp utils.o
+ecpp: ecpp.cpp
+	$(CC) $(INCLUDE) $(CC_LIBS) -o ecpp ecpp.cpp
 
 atkin: atkin237.cpp
-	$(CXX) $(INCLUDE) $(LIBS) -o atkin atkin237.cpp
+	$(CXX) $(INCLUDE) $(CXX_LIBS) -o atkin atkin237.cpp
 
-debug: ecpp.cpp utils.o
-	$(CXX) $(INCLUDE) $(LIBS) -g -o ecpp ecpp.cpp utils.o
+debug: ecpp.cpp
+	$(CC) $(INCLUDE) $(CC_LIBS) -g -o ecpp ecpp.cpp
 
 clean:
 	@echo Cleaning ECPP Project
