@@ -38,7 +38,7 @@ void InitDiscriminants(void)
 {
   int32_t anD[MAX_DISCRIMINANTS] = {
   /* Place holder */ 0, 
-  /* Class 1 */ -3,-4,-7,-8,-11,-19,-43,-67,-163,
+  /* Class 1 */ -3,-4, -7,-8,-11,-19,-43,-67,-163,
   /* Class 2 */ -15,-20,-24,-35,-40,-51,-52,-88,-91,-115,-123,-148,-187,-232,
                 -235,-267,-403,-427};
 
@@ -612,7 +612,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
     // Curve order m and factor q found
     anResult = true;
   }
-  else if(mpz_cmp_si(theD, -4) >= -4)
+  else if(mpz_cmp_si(theD, -4) == 0)
   {
     // Test next special cases m1 = m0 + 2v and m2 = m0 - 2v
     mpz_set(m1, m0);
@@ -635,24 +635,50 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
       // Curve order m and factor q found
       anResult = true;
     }
-    else if(mpz_cmp_si(theD, -3) == 0)
+    else
     {
-      mpz_t m3; // (u + 3v) / 2
-      mpz_t m4; // (u - 3v) / 2
-      mpz_init_set(m3, theU);
-      mpz_init_set(m4, theU);
+      // No curve found for D = -4
+    }
+  }
+  else if(mpz_cmp_si(theD, -3) == 0)
+  {
+    mpz_t m3; // (u + 3v) / 2
+    mpz_t m4; // (u - 3v) / 2
+    mpz_init_set(m3, theU);
+    mpz_init_set(m4, theU);
 
-      // Prepare factor m3 = (u + 3v) / 2
-      mpz_addmul_ui(m3, theV, 3);
-      mpz_tdiv_q_ui(m3, m3, 2);
+    // Prepare factor m3 = (u + 3v) / 2
+    mpz_addmul_ui(m3, theV, 3);
+    mpz_tdiv_q_ui(m3, m3, 2);
 
-      // Prepare factor m4 = (u - 3v) / 2
-      mpz_submul_ui(m4, theV, 3);
-      mpz_tdiv_q_ui(m4, m4, 2);
+    // Prepare factor m4 = (u - 3v) / 2
+    mpz_submul_ui(m4, theV, 3);
+    mpz_tdiv_q_ui(m4, m4, 2);
 
-      // Test special case m1 = m0 + m3 and m2 = m0 + m4
-      mpz_add(m1, m0, m3);
-      mpz_add(m2, m0, m4);
+    // Test special case m1 = m0 + m3 and m2 = m0 + m4
+    mpz_add(m1, m0, m3);
+    mpz_add(m2, m0, m4);
+    if(true == FindFactor(theQ, m1, t))
+    {
+      // Set m = m1
+      mpz_set(*theM, m1);
+
+      // Curve order m and factor q found
+      anResult = true;
+    }
+    else if(true == FindFactor(theQ, m2, t))
+    {
+      // Set m = m2
+      mpz_set(*theM, m2);
+
+      // Curve order m and factor q found
+      anResult = true;
+    }
+    else
+    {
+      // Test special case m1 = m0 - m3 and m2 = m0 - m4
+      mpz_sub(m1, m0, m3);
+      mpz_sub(m2, m0, m4);
       if(true == FindFactor(theQ, m1, t))
       {
         // Set m = m1
@@ -671,36 +697,17 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
       }
       else
       {
-        // Test special case m1 = m0 - m3 and m2 = m0 - m4
-        mpz_sub(m1, m0, m3);
-        mpz_sub(m2, m0, m4);
-        if(true == FindFactor(theQ, m1, t))
-        {
-          // Set m = m1
-          mpz_set(*theM, m1);
-
-          // Curve order m and factor q found
-          anResult = true;
-        }
-        else if(true == FindFactor(theQ, m2, t))
-        {
-          // Set m = m2
-          mpz_set(*theM, m2);
-
-          // Curve order m and factor q found
-          anResult = true;
-        }
-        else
-        {
-          // nothing was found, anResult should already be false
-          //printf("FactorOrder failed!\n");
-        }
+        // No curve found for D = -3
       }
-
-      // Clear our values used above
-      mpz_clear(m4);
-      mpz_clear(m3);
     }
+
+    // Clear our values used above
+    mpz_clear(m4);
+    mpz_clear(m3);
+  }
+  else
+  {
+    // No curve found for D < -4
   }
 
   // Clear our values used above
@@ -879,7 +886,7 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
       break;
     case -115:
       // 269593600 - 89157120  * sqrt(5)
-      mpz_set_ui(tmp1, 13);
+      mpz_set_ui(tmp1, 5);
       isValid = SquareMod(&tmp1, tmp1, p);
       mpz_set_ui(*r, 269593600);
       mpz_set_ui(*s, 468954981);
@@ -1085,18 +1092,19 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
 
       // Determine if theD can be found by LookupCurveParameters
       anResult = LookupCurveParameters(&r, &s, theN, theD);
-      
+      gmp_printf("r=%Zd, s=%Zd\n", r, s);
+
       // Did LookupCurveParameters yield an r and s value?
       if(anResult)
       {
         // Compute a = -3rs^3g^(2k) with k==0
-        mpz_pow_ui(*theA, s, 3);
+        mpz_powm_ui(*theA, s, 3, theN);
         mpz_mul(*theA, *theA, r);
-        mpz_mul_ui(*theA, *theA, -3);
+        mpz_mul_si(*theA, *theA, -3);
         mpz_mod(*theA, *theA, theN);
 
         // Compute b = 2rs^5g^(3k) with k==0
-        mpz_pow_ui(*theB, s, 5);
+        mpz_powm_ui(*theB, s, 5, theN);
         mpz_mul(*theB, *theB, r);
         mpz_mul_ui(*theB, *theB, 2);
         mpz_mod(*theB, *theB, theN);
@@ -1606,11 +1614,13 @@ bool AtkinMorain(mpz_t& theN)
     // a new discriminant D and curve m.
     if(!FactorOrders(&m, &q, u, v, n, gD[anIndexD]))
       continue; // No factor q or curve m was found, try another discriminant
-    gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n", gD[anIndexD], u, v, m, q);
+    gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n", 
+      gD[anIndexD], u, v, m, q);
 
     // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
     // g mod p and if D=-3 a noncube g^3 mod p for use in step 4b
     CalculateNonresidue(&g, n, gD[anIndexD]);
+    gmp_printf("G=%Zd\n", g);
 
     // Now that we have selected a curve m with factor q to be proven, obtain
     // curve parameters and test up to MAX_POINTS to see if N is composite
@@ -1744,20 +1754,43 @@ int main(int argc, char* argv[])
   // Initialize our fixed list of discriminants
   InitDiscriminants();
 
-  // Initialize our number
-  mpz_init(anNumber);
-  
-  // Get the number to test
-  gmp_scanf("%Zd", &anNumber);
-  
-  // Use Atkin-Morain to determine if the number is prime
-  if(false == AtkinMorain(anNumber))
+  // TESTTESTTEST
+  if(0)
   {
-    printf("composite\n");
+    // Initialize our number
+    mpz_init_set_ui(anNumber, 1073748191);
+    
+    do
+    {
+      if(!AtkinMorain(anNumber))
+      {
+        gmp_printf("FAIL [%Zd]\n", anNumber);
+      }
+      else
+      {
+        //gmp_printf("PASS [%Zd]\n", anNumber);
+      }
+    
+      mpz_nextprime(anNumber, anNumber);
+    } while(true);
   }
   else
   {
-    printf("proven prime\n");
+    // Initialize our number
+    mpz_init(anNumber);
+
+    // Get the number to test
+    gmp_scanf("%Zd", &anNumber);
+  
+    // Use Atkin-Morain to determine if the number is prime
+    if(!AtkinMorain(anNumber))
+    {
+      printf("composite\n");
+    }
+    else
+    {
+      printf("proven prime\n");
+    }
   }
 
   // Clear the number before exiting the program
