@@ -28,6 +28,7 @@ struct Point
 {
   mpz_t x;
   mpz_t y;
+  mpz_t z;
 };
 
 /**
@@ -432,18 +433,132 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
 }
 
 /**
+ * Preforms ellpitic addtion of two affine coordinates. The argument d 
+ * will also be passed back with the divisor used in the addtion.
+ */
+void EllipticAdd(Point& p, Point& p1, Point& p2, mpz_t d, mpz_t a) {  
+  if (mpz_cmp_ui(p1.z, 0) == 0) // z1 == 0
+  {
+    mpz_set(p.x, p2.x);
+    mpz_set(p.y, p2.y);
+    mpz_set(p.z, p2.z);
+    return;
+  }
+  else if (mpz_cmp_ui(p2.z, 0) == 0) // z2 == 0
+  {
+    mpz_set(p.x, p1.x);
+    mpz_set(p.y, p1.y);
+    mpz_set(p.z, p1.z);
+    return;
+  }
+  
+  mpz_t m;
+  mpz_init(m);
+  
+  if (mpz_cmp(p1.x, p2.x) == 0) // x1 == x2
+  {
+    mpz_add(m, p1.y, p2.y);
+    if (mpz_cmp_ui(m, 0) == 0)
+    {
+      mpz_set_ui(p.x, 0);
+      mpz_set_ui(p.y, 1);
+      mpz_set_ui(p.z, 0);
+      mpz_clear(m);
+      return;
+    }
+    // m = (3 * x1 ^ 2 + a) / (2 * y1 )
+    mpz_mul_ui(d, p1.y, 2); 
+    mpz_pow_ui(m, p1.x, 2);
+    mpz_mul_ui(m, m, 3);
+    mpz_add(m, m, a);
+    mpz_div(m, m, d);
+  }
+  else
+  {
+    // m = (y2 - y1) / (x2 - x1)
+    mpz_sub(d, p2.x, p1.x); 
+    mpz_sub(m, p2.y, p1.y);
+    mpz_div(m, m, d);
+  }
+  
+  mpz_t x3, y3;
+  mpz_init(x3);
+  mpz_init(y3);
+  
+  // x3 = m ^ 2 - x1 - x2
+  mpz_pow_ui(x3, m, 2);
+  mpz_sub(x3, x3, p1.x);
+  mpz_sub(x3, x3, p2.x);
+  
+  // m * ( x1 - x3) - y1
+  mpz_sub(y3, p1.x, x3);
+  mpz_mul(y3, y3, m);
+  mpz_sub(y3, y3, p1.y);
+  
+  mpz_set(p.x, x3);
+  mpz_set(p.y, y3);
+  mpz_set_ui(p.z, 1);
+  
+  mpz_clear(m);
+  mpz_clear(x3);
+  mpz_clear(y3);
+}
+
+/**
+ * Sets n to the next prime that does exceed the limit. If there is
+ * not one, n is set to the limit. This is very inefficient so 
+ * should only be used with small numbers.
+ * 
+ * We could possibly add a precomputed table of the first <limit> primes.
+ */
+void NextPrime(mpz_t n, unsigned long limit)
+{
+  mpz_t factor, sqrtN, remainder;
+  
+  mpz_init(factor);
+  mpz_init(sqrtN);
+  mpz_init(remainder);
+  
+  mpz_add_ui(n, n, 1);
+  while (mpz_cmp_ui(n, limit) < 0)
+  {
+    bool isPrime = true;
+    mpz_sqrt(sqrtN, n);
+    for (mpz_set_ui(factor, 2); mpz_cmp(factor, sqrtN) <= 0; mpz_add_ui(factor, factor, 1))
+    {
+      mpz_mod(remainder, n, factor);
+      if (mpz_cmp_ui(remainder, 0) == 0)
+      {
+        isPrime = false;
+        break;
+      }
+    }
+    if (isPrime)
+    {
+      break;
+    }
+    mpz_add_ui(n, n, 1);
+  }
+  
+  mpz_clear(factor);
+  mpz_clear(sqrtN);
+  mpz_clear(remainder);
+}
+
+/**
  * LenstraECM will attempt to find the largest non-trivial prime number that
  * will factor theN provided. This is called by FindFactor to find a probable
  * prime theQ that if proven to be prime will prove theN to be prime.
  */
 void LenstraECM(mpz_t* theQ, mpz_t& theN)
 {
-  unsigned long b1 = 10000; // Limit to 10000 iterations
+  unsigned long B1 = 10000;
   Point P;  // Point (x,y) on curve E
   mpz_t a;  // Random value a for curve E
   mpz_t b;  // Random value b for curve E
   mpz_t g;  // The factor found if any
   mpz_t t;  // Temporary value for computing b
+  mpz_t p, d;
 
   // Initialize our values
   mpz_init(P.x);
@@ -452,8 +567,9 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_init(b);
   mpz_init(g);
   mpz_init(t);
+  mpz_init(p);
+  mpz_init(d);
 
-  // Loop through b1 iterations trying to find a non-trivial factor of theN
   do {
     // Pick a random x from 0 to N-1
     mpz_urandomm(P.x, gRandomState, theN);
@@ -463,11 +579,12 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
     mpz_urandomm(a, gRandomState, theN);
 
     // Compute b = (y^2 - x^3 - ax) mod n
-    mpz_pow_ui(t, P.x, 3); // x^3
-    mpz_submul(t, a, P.x); // x^3 - ax
     mpz_pow_ui(b, P.y, 2); // y^2
-    mpz_sub(b, b, t);      // (y^2) - (x^3 - ax)
-    mpz_mod(b, b, theN);   // (y^2 - x^3 - ax) mod n
+    mpz_pow_ui(t, P.x, 3); // x^3
+    mpz_sub(b, b, t); // y^2 - x^3
+    mpz_mul(t, a, P.x); // ax
+    mpz_sub(b, b, t); // y^2 - x^3 - ax
+    mpz_mod(b, b, theN);  // (y^2 - x^3 - ax) mod n
 
     // Compute 4a^3 + 27b^2
     mpz_pow_ui(a, a, 3);  // a^3
@@ -485,9 +602,32 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
       gmp_printf("g=%Zd\n", g);
       break;
     }
+    
+    bool factorFound = false;
+    for (mpz_set_ui(p, 1); mpz_cmp_ui(p, B1) < 0; NextPrime(p, B1))
+    {
+      mpz_pow_ui(t, p, 1);
+      for (unsigned long j = 1; mpz_cmp_ui(t, B1) <= 0; mpz_pow_ui(t, p, ++j))
+      {
+        for (int k = 0; mpz_cmp_ui(p, k) > 0; k++)
+        {
+          EllipticAdd(P, P, P, d, a);
+          mpz_gcd(g, theN, d);
+          if (mpz_cmp_ui(g, 1) != 0 && mpz_cmp(g, theN) != 0) {
+            mpz_set(theN, g);
+            factorFound = true;
+            break;
+          }
+        }
+        if (factorFound) break;
+      }
+      if (factorFound) break;
+    }
+    if (factorFound) break;
+    
+    // Possibly increment B1
+    
   } while(true);
-
-  // TODO: Finish LenstraECM implementation!
 
   // Clear our values used above
   mpz_clear(t);
@@ -496,6 +636,8 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_clear(a);
   mpz_clear(P.y);
   mpz_clear(P.x);
+  mpz_clear(p);
+  mpz_clear(d);
 }
 
 /**
