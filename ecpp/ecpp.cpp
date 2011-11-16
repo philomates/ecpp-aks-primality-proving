@@ -559,6 +559,11 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_t g;  // The factor found if any
   mpz_t t;  // Temporary value for computing b
   mpz_t p, d;
+  
+  Point currentP;
+  mpz_init(currentP.x);
+  mpz_init(currentP.y);
+  mpz_init(currentP.z);
 
   // Initialize our values
   mpz_init(P.x);
@@ -609,9 +614,12 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
       mpz_pow_ui(t, p, 1);
       for (unsigned long j = 1; mpz_cmp_ui(t, B1) <= 0; mpz_pow_ui(t, p, ++j))
       {
+        mpz_set(currentP.x, P.x);
+        mpz_set(currentP.y, P.y);
+        mpz_set(currentP.z, P.z);
         for (int k = 0; mpz_cmp_ui(p, k) > 0; k++)
         {
-          EllipticAdd(P, P, P, d, a);
+          EllipticAdd(P, P, currentP, d, a);
           mpz_gcd(g, theN, d);
           if (mpz_cmp_ui(g, 1) != 0 && mpz_cmp(g, theN) != 0) {
             mpz_set(theN, g);
@@ -636,6 +644,11 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_clear(a);
   mpz_clear(P.y);
   mpz_clear(P.x);
+  
+  mpz_clear(currentP.x);
+  mpz_clear(currentP.y);
+  mpz_clear(currentP.z);
+
   mpz_clear(p);
   mpz_clear(d);
 }
