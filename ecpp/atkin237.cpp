@@ -25,6 +25,7 @@
 
 */
 
+
 #include <getopt.h>
 #include <math.h>
 #include <stdio.h>
@@ -34,6 +35,11 @@
 #include <time.h>
 
 #include <iostream>
+
+// Next two lines fixes bugs in gmpxx.h
+extern void   (*__gmp_free_func) (void *, size_t);
+#include <cstring>
+
 #include <gmpxx.h>
 #include <gmp.h>
 
