@@ -15,6 +15,7 @@ void compute_logn(mpz_t rop, mpz_t n) {
   mpfr_set_z(tmp, n, MPFR_RNDN);
   mpfr_log(tmp, tmp, MPFR_RNDN);
   mpfr_get_z(rop, tmp, MPFR_RNDN);
+  mpfr_clear(tmp);  
 }
 
 void compute_logn2(mpz_t rop, mpz_t n) {
@@ -27,6 +28,7 @@ void compute_logn2(mpz_t rop, mpz_t n) {
   mpfr_ceil(tmp, tmp);
 
   mpfr_get_z(rop, tmp, MPFR_RNDA);
+  mpfr_clear(tmp);
 }
 
 void find_smallest_r(mpz_t r, mpz_t n) {
@@ -52,6 +54,10 @@ void find_smallest_r(mpz_t r, mpz_t n) {
       mpz_add_ui(r, r, 1);
     }
   }
+
+  mpz_clear(logn2);
+  mpz_clear(i);
+  mpz_clear(tmp);
 }
 
 int check_a_exists(mpz_t n, mpz_t r) {
@@ -59,13 +65,20 @@ int check_a_exists(mpz_t n, mpz_t r) {
   mpz_init(a);
   mpz_init(gcd);
 
+  int exists = FALSE;
+
   for (mpz_set_ui(a, 1); mpz_cmp(a, r) <= 0; mpz_add_ui(a, a, 1)) {
     mpz_gcd(gcd, a, n);
-    if (mpz_cmp_ui(gcd, 1) > 0 && mpz_cmp(gcd, n) < 0)
-      return TRUE;
+    if (mpz_cmp_ui(gcd, 1) > 0 && mpz_cmp(gcd, n) < 0) {
+      exists = TRUE;
+      break;
+    }
   }
 
-  return FALSE;
+  mpz_clear(a);
+  mpz_clear(gcd);
+
+  return exists;
 }
 
 void totient(mpz_t rop, mpz_t op) {
@@ -76,9 +89,13 @@ void totient(mpz_t rop, mpz_t op) {
 
   for (mpz_set(i, op); mpz_cmp_ui(i, 0) != 0; mpz_sub_ui(i, i, 1)) {
     mpz_gcd(gcd, i, op);
-    if (mpz_cmp_ui(gcd, 1) == 0)
+    if (mpz_cmp_ui(gcd, 1) == 0) {
       mpz_add_ui(rop, rop, 1);
-  } 
+    }
+  }
+
+  mpz_clear(i);
+  mpz_clear(gcd);
 }
 
 void compute_upper_limit(mpz_t rop, mpz_t r, mpz_t n) {
@@ -92,6 +109,9 @@ void compute_upper_limit(mpz_t rop, mpz_t r, mpz_t n) {
 
   compute_logn(logn, n);
   mpz_mul(rop, tot, logn);
+
+  mpz_clear(tot);
+  mpz_clear(logn);
 }
 
 int check_poly(mpz_t n, mpz_t a, mpz_t r) {
@@ -104,8 +124,9 @@ int check_poly(mpz_t n, mpz_t a, mpz_t r) {
   terms = mpz_get_ui(r) + 1;
   mpz_t* poly = malloc(sizeof(mpz_t) * terms);
 
-  for (i = 0; i < terms; i++)
+  for (i = 0; i < terms; i++) {
     mpz_init(poly[i]);
+  }
 
   mpz_set(poly[0], a);
   mpz_set_ui(poly[1], 1);
@@ -130,14 +151,17 @@ int check_poly(mpz_t n, mpz_t a, mpz_t r) {
   }
   else {
     for (i = 1; i < terms - 1; i++) {
-      if (mpz_cmp_ui(poly[i], 0) != 0)
+      if (mpz_cmp_ui(poly[i], 0) != 0) {
         equality_holds = FALSE;
         break;
+      }
     }
   }
 
-  for (i = 0; i < terms; i++)
+  for (i = 0; i < terms; i++) {
     mpz_clear(poly[i]);
+  }
+  free(poly);
   mpz_clear(tmp);
   mpz_clear(loop);
 
@@ -149,21 +173,31 @@ int check_polys(mpz_t r, mpz_t n) {
   mpz_init(a);
   mpz_init(lim);
 
+  int status = PRIME;
   gmp_printf("computing upper limit\n");
   compute_upper_limit(lim, r, n);
   gmp_printf("lim=%Zd\n", lim);
   for (mpz_set_ui(a, 1); mpz_cmp(a, lim) <= 0; mpz_add_ui(a, a, 1)) {
-    if (!check_poly(n, a, r))
-      return COMPOSITE;
+    if (!check_poly(n, a, r)) {
+      status = COMPOSITE;
+      break;
+    }
   }
+
+  mpz_clear(a);
+  mpz_clear(lim);
+
+  return status;
 }
 
 int is_prime(mpz_t n) {
-  if (mpz_cmp_ui(n, 1) <= 0 || mpz_divisible_ui_p(n, 2))
-    return COMPOSITE; 
-
-  if (mpz_perfect_power_p(n))
+  if (mpz_cmp_ui(n, 1) <= 0 || mpz_divisible_ui_p(n, 2)) {
     return COMPOSITE;
+  }
+
+  if (mpz_perfect_power_p(n)) {
+    return COMPOSITE;
+  }
 
   mpz_t r;
   mpz_init(r);
@@ -171,34 +205,37 @@ int is_prime(mpz_t n) {
 
   gmp_printf("r=%Zd\n", r);
 
-  if (check_a_exists(n, r))
-   return COMPOSITE;
+  if (check_a_exists(n, r)) {
+    mpz_clear(r);
+    return COMPOSITE;
+  }
 
   gmp_printf("a does not exist\n");
 
-  if (mpz_cmp(n, r) <= 0)
+  if (mpz_cmp(n, r) <= 0) {
+    mpz_clear(r);
     return PRIME;
+  }
 
   gmp_printf("checking polynomial equation\n");
 
-  if (check_polys(r, n))
+  if (check_polys(r, n)) {
+    mpz_clear(r);
     return COMPOSITE;
+  }
 
+  mpz_clear(r);
   return PRIME; 
 }
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    gmp_printf("usage: aks num\n");
-    return 1;
-  }
-
   mpz_t n;
   mpz_init(n);
-  mpz_set_str(n, argv[1], 0);
+  gmp_scanf("%Zd", &n);
   int prime = is_prime(n);
   gmp_printf("%d\n", prime);
-
+  mpz_clear(n);
+  mpfr_free_cache();
   return 0;
 }
 
