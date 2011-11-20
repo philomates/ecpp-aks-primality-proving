@@ -5,10 +5,12 @@ if [[ $# != 2 ]]; then
   exit 1
 fi
 
-cat $1 | grep real | awk '{print $2}' > $$.1
+DIR=`dirname $0`
+
+cat $1 | grep real | sed 's/[ms]/ /g' | awk '{print ($2 * 60 + $3)}' > $$.1
 
 for n in $(cat $2); do
-  python digits.py $n >> $$.2
+  python $DIR/digits.py $n >> $$.2
 done
 
 echo "# Number	Time	Decimal-Digits	Binary-Digits"

@@ -141,7 +141,7 @@ int check_poly(mpz_t n, mpz_t a, mpz_t r) {
     }
 
     mpz_mul(poly[0], poly[0], a);
-    mpz_add(poly[0], poly[0], poly[i-1]);
+    mpz_add(poly[0], poly[0], tmp);
     mpz_mod(poly[0], poly[0], n);
   }
 
@@ -191,6 +191,10 @@ int check_polys(mpz_t r, mpz_t n) {
 }
 
 int is_prime(mpz_t n) {
+  if (mpz_cmp_ui(n, 2) == 0) {
+    return PRIME;
+  }
+
   if (mpz_cmp_ui(n, 1) <= 0 || mpz_divisible_ui_p(n, 2)) {
     return COMPOSITE;
   }

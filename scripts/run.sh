@@ -6,6 +6,8 @@ if [[ $# != 2 ]]; then
 fi
 
 for n in $(cat $2); do
-  (time -p echo $n | $1) 2>&1 
+  echo "Testing $n"
+  (time echo $n | $1) 2>&1 
+  echo ""
 done
 
