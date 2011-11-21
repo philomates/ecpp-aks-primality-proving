@@ -114,39 +114,73 @@ void compute_upper_limit(mpz_t rop, mpz_t r, mpz_t n) {
   mpz_clear(logn);
 }
 
-int check_poly(mpz_t n, mpz_t a, mpz_t r) {
-  int i, terms, equality_holds;
+void polymul(mpz_t* rop, mpz_t* op1, unsigned int len1, mpz_t* op2, unsigned int len2, mpz_t n) {
+  int i, j, t;
 
-  mpz_t tmp, loop;
-  mpz_init(tmp);
-  mpz_init(loop);
+  for (i = 0; i < len1; i++) {
+    for (j = 0; j < len2; j++) {
+      t = (i + j) % len1;
+      mpz_addmul(rop[t], op1[i], op2[j]);
+      mpz_mod(rop[t], rop[t], n);
+    }
+  }
+}
 
-  terms = mpz_get_ui(r) + 1;
+mpz_t* init_poly(unsigned int terms) {
+  int i;
   mpz_t* poly = malloc(sizeof(mpz_t) * terms);
-
   for (i = 0; i < terms; i++) {
     mpz_init(poly[i]);
   }
+  return poly;
+}
 
-  mpz_set(poly[0], a);
+void clear_poly(mpz_t* poly, unsigned int terms) {
+  int i;
+  for (i = 0; i < terms; i++) {
+    mpz_clear(poly[i]);
+  }
+  free(poly);
+}
+
+int check_poly(mpz_t n, mpz_t a, mpz_t r) {
+  unsigned int i, terms, equality_holds;
+
+  mpz_t tmp, neg_a, loop;
+  mpz_init(tmp);
+  mpz_init(neg_a);
+  mpz_init(loop);
+
+  terms = mpz_get_ui(r) + 1;
+  mpz_t* poly = init_poly(terms);
+  mpz_t* ptmp = init_poly(terms);
+  mpz_t* stmp;
+
+  mpz_mul_ui(neg_a, a, -1);
+
+  mpz_set(poly[0], neg_a);
   mpz_set_ui(poly[1], 1);
 
-  for (mpz_set_ui(loop, 2); mpz_cmp(loop, n) <= 0; mpz_add_ui(loop, loop, 1)) {
-    mpz_set(tmp, poly[terms-1]);
-
-    for (i = terms - 1; i > 0; i--) {
-      mpz_mul(poly[i], poly[i], a);
-      mpz_add(poly[i], poly[i], poly[i-1]);
-      mpz_mod(poly[i], poly[i], n);
-    }
-
-    mpz_mul(poly[0], poly[0], a);
-    mpz_add(poly[0], poly[0], tmp);
-    mpz_mod(poly[0], poly[0], n);
+  for (mpz_set_ui(loop, 2); mpz_cmp(loop, n) <= 0; mpz_mul(loop, loop, loop)) {
+    polymul(ptmp, poly, terms, poly, terms, n);
+    stmp = poly;
+    poly = ptmp;
+    ptmp = stmp;
   }
 
+  mpz_t* xMinusA = init_poly(2);
+  mpz_set(ptmp[0], neg_a);
+  mpz_set_ui(ptmp[1], 1);
+  for (; mpz_cmp(loop, n) <= 0; mpz_add_ui(loop, loop, 1)) {
+    polymul(ptmp, poly, terms, xMinusA, 2, n);
+    stmp = poly;
+    poly = ptmp;
+    ptmp = stmp;
+  }
+  clear_poly(xMinusA, 2);
+
   equality_holds = TRUE;
-  if (mpz_cmp(poly[0], a) != 0 || mpz_cmp_ui(poly[terms-1], 1) != 0) {
+  if (mpz_cmp(poly[0], neg_a) != 0 || mpz_cmp_ui(poly[terms - 1], 1) != 0) {
     equality_holds = FALSE;
   }
   else {
@@ -158,11 +192,11 @@ int check_poly(mpz_t n, mpz_t a, mpz_t r) {
     }
   }
 
-  for (i = 0; i < terms; i++) {
-    mpz_clear(poly[i]);
-  }
-  free(poly);
+  clear_poly(poly, terms);
+  clear_poly(ptmp, terms);
+
   mpz_clear(tmp);
+  mpz_clear(neg_a);
   mpz_clear(loop);
 
   return equality_holds;
