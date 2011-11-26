@@ -19,4 +19,4 @@ debug: ecpp.cpp
 
 clean:
 	@echo Cleaning ECPP Project
-	rm -f *.o
+	rm -f *.o ecpp atkin
