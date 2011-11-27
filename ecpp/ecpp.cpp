@@ -675,6 +675,8 @@ void LenstraECM(mpz_t* theQ, mpz_t& theN)
   mpz_clear(d);
 }
 
+// As adapted from Atkins
+// Used in LenstrasECMAtkins
 int addition_1(mpz_t &n, Point &P1, Point &P2, Point *P3)
 /* affine coords */
 /* returns 1 if P1 = -P2 therefore P1 + P2 = O, 0 otherwise */
@@ -735,6 +737,8 @@ int addition_1(mpz_t &n, Point &P1, Point &P2, Point *P3)
   return 0;
 }
 
+// As adapted from Atkins
+// Used in LenstrasECMAtkins
 void addition_2(mpz_t &a, mpz_t &n, Point &P1, Point *P3)
 /* affine coords */
 /* P1 == P2 */
@@ -774,6 +778,9 @@ void addition_2(mpz_t &a, mpz_t &n, Point &P1, Point *P3)
   mpz_clear(tmp2);
 }
 
+// As adapted from Atkins
+// Used in LenstrasECMAtkins
+// XXX: not sure if d needs to be a pointer!
 int multiply(mpz_t &a, mpz_t *k, mpz_t &n, Point &P, Point *R, mpz_t *d)
 /* binary ladder */
 /* returns -1 if O encountered, 0 if divisor not found, 1 otherwise */
@@ -842,6 +849,7 @@ int multiply(mpz_t &a, mpz_t *k, mpz_t &n, Point &P, Point *R, mpz_t *d)
   return !value;
 }
 
+// As adapted from Atkins
 int LenstrasECMAtkins(mpz_t *g, mpz_t *N, mpz_t &Bmax)
 {
   int found = 0;
@@ -933,6 +941,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   unsigned long count = MAX_PRIMES; // Primes to try to remove from theQ
   mpz_t prime;  // Prime numbers to remove from theQ
 
+  // XXX: Does the following need to be done?
   /*
   // From Atkins:
   while (*q % 2 == 0)
@@ -950,7 +959,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
   // removed from m leaving q as a possible prime factor
   mpz_set(*theQ, theM);
 
-  printf("cowbell\n");
+  printf("Before LenstrasECMAtkins\n");
 
   mpz_t Bmax;
   mpz_init(Bmax);
@@ -966,12 +975,15 @@ bool FindFactor(mpz_t* theQ, mpz_t& theM, mpz_t& theT)
     mpz_set(oldq, *theQ);
     LenstrasECMAtkins(theQ, &d, Bmax);
     if (mpz_cmp(*theQ, theT) < 0)
+      printf("After LenstrasECMAtkins; returned false\n");
       return false;
     if (mpz_cmp(*theQ, theM) < 0 && mpz_probab_prime_p(*theQ, 10))
+      printf("After LenstrasECMAtkins; returned true\n");
       return true;
   } while (mpz_cmp(*theQ, oldq) < 0);
 
-  printf("foobar\n");
+  printf("After LenstrasECMAtkins; returned false\n");
+  // XXX: add mpz cleanup...
   return false;
 
 
@@ -2201,6 +2213,129 @@ bool AtkinMorain(mpz_t& theN)
 
 int main(int argc, char* argv[])
 {
+  // The following tests need to pass before LenstrasECMAtkins works...
+  // Begin tests {
+  // Test addition_1 against Atkins
+  Point P3_out, P1, P2, P3;
+  init_point(&P1);
+  init_point(&P3_out);
+  init_point(&P2);
+  init_point(&P3);
+
+  mpz_t n;
+  mpz_init(n);
+
+  mpz_set_str(n, "726243755900321557823344611539568951193175790607", 10);
+  mpz_set_str(P1.x, "697667058279753647017727238568818916577151486688", 10);
+  mpz_set_str(P1.y, "95661412178779163771678843262458108011676980072", 10);
+  mpz_set_str(P3_out.x, "248361280430928986836829886848750073077157439035", 10);
+  mpz_set_str(P3_out.y, "44043269538927538604771589279712802805911546478", 10);
+  mpz_set_str(P2.x, "279314343952710157694458696568719365857141560764", 10);
+  mpz_set_str(P2.y, "309276843233765101149829641124290557861208241939", 10);
+  mpz_set_str(P3.x, "697667058279753647017727238568818916577151486688", 10);
+  mpz_set_str(P3.y, "95661412178779163771678843262458108011676980072", 10);
+  assert(!addition_1(n, P1, P2, &P3));
+  assert(!mpz_cmp(P3.x, P3_out.x));
+  assert(!mpz_cmp(P3.y, P3_out.y));
+
+  mpz_clear(n);
+  clear_point(&P1);
+  clear_point(&P3_out);
+  clear_point(&P2);
+  clear_point(&P3);
+
+  // Test addition_2 against Atkins
+  init_point(&P1);
+  init_point(&P3_out);
+  init_point(&P2);
+  init_point(&P3);
+
+  mpz_init(n);
+  mpz_t a;
+  mpz_init(a);
+
+  mpz_set_str(n, "726243755900321557823344611539568951193175790607", 10);
+  mpz_set_str(a, "506306831", 10);
+
+  mpz_set_str(P1.x, "68612014570698684427819324375625404232815981578", 10);
+  mpz_set_str(P1.y, "322197802576046456424022868262005705953636649620", 10);
+  mpz_set_str(P3.x, "68612014570698684427819324375625404232815981578", 10);
+  mpz_set_str(P3.y, "322197802576046456424022868262005705953636649620", 10);
+  mpz_set_str(P3_out.x, "46996128964858035919977969258434428759207107775", 10);
+  mpz_set_str(P3_out.y, "213050000072206701223168678692956427063672148963", 10);
+
+  addition_2(n, a, P1, &P3);
+  assert(!mpz_cmp(P3.x, P3_out.x));
+  assert(!mpz_cmp(P3.y, P3_out.y));
+
+  mpz_clear(n);
+  clear_point(&P1);
+  clear_point(&P3_out);
+  clear_point(&P2);
+  clear_point(&P3);
+
+  // Test multiply against Atkins
+  Point P, R, R_out;
+  init_point(&P);
+  init_point(&R);
+  init_point(&R_out);
+
+  mpz_t k, k_out, d, d_out;
+  mpz_init(k);
+  mpz_init(k_out);
+  mpz_init(d);
+  mpz_init(d_out);
+  mpz_init(n);
+  mpz_init(a);
+
+  mpz_set_str(n, "726243755900321557823344611539568951193175790607", 10);
+  mpz_set_str(a, "3281882550", 10);
+  mpz_set_str(d, "1", 10);
+  mpz_set_str(k, "509", 10);
+  mpz_set_str(d_out, "1", 10);
+  mpz_set_str(k_out, "0", 10);
+
+  mpz_set_str(P.x, "206824122627435629054104730439759453253196239640", 10);
+  mpz_set_str(P.y, "662165958623256438719432075658263790899263857699", 10);
+  mpz_set_str(R.x, "206824122627435629054104730439759453253196239640", 10);
+  mpz_set_str(R.y, "662165958623256438719432075658263790899263857699", 10);
+  mpz_set_str(R_out.x, "551150114262709050722381871653362232550402646998", 10);
+  mpz_set_str(R_out.y, "69991063430693616226628030032213640245479554989", 10);
+
+  assert(!multiply(a, &k, n, P, &R, &d));
+  assert(!mpz_cmp(R.x, R_out.x));
+  assert(!mpz_cmp(R.y, R_out.y));
+  assert(!mpz_cmp(k_out, k));
+  assert(!mpz_cmp(d_out, d));
+
+  mpz_clear(n);
+  mpz_clear(a);
+  mpz_clear(d);
+  mpz_clear(d_out);
+  mpz_clear(k);
+  mpz_clear(k_out);
+
+  clear_point(&P);
+  clear_point(&R);
+  clear_point(&R_out);
+
+  // Test FindFactor against Atkins
+  mpz_t q, m, t;
+  mpz_t q_out, m_out, t_out;
+  mpz_inits(q, m, t, NULL);
+  mpz_inits(q_out, m_out, t_out, NULL);
+  mpz_set_ui(q, 18886323493);
+  mpz_set_ui(m, 18886567377);
+  mpz_set_ui(t, 137641);
+
+  mpz_set_ui(q_out, 238729);
+  mpz_set_ui(m_out, 18886567377);
+  mpz_set_ui(t_out, 137641);
+  FindFactor(&q, m, t);
+  assert(!mpz_cmp(q, q_out));
+  return 0;
+  // } end tests
+
   mpz_t anNumber;  // Number to be tested for Primality
 
   // Initialize our random generator first

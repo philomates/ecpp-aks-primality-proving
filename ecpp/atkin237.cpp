@@ -224,6 +224,12 @@ int addition_1(mpz_class n, struct point P1, struct point P2, struct point *P3)
 /* returns 1 if P1 = -P2 therefore P1 + P2 = O, 0 otherwise */
 /* P1 != P2 */
 {
+  //gmp_printf("in n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("in P1: %Zd, %Zd\n", P1.x.get_mpz_t(), P1.y.get_mpz_t());
+  //gmp_printf("in P2: %Zd, %Zd\n", P2.x.get_mpz_t(), P2.y.get_mpz_t());
+  //gmp_printf("in P3: %Zd, %Zd\n", P3->x.get_mpz_t(), P3->y.get_mpz_t());
+  //fflush(stdout);
+
   mpz_class delta_x;
   mpz_class delta_y;
   mpz_class m;
@@ -233,6 +239,11 @@ int addition_1(mpz_class n, struct point P1, struct point P2, struct point *P3)
 
   if (P1.x == P2.x && modpos(P1.y + P2.y, n) == 0) {
     P3->x = 0, P3->y = 1;
+    //gmp_printf("out 1 n=%Zd\n", n.get_mpz_t());
+    //gmp_printf("out 1 P1: %Zd, %Zd\n", P1.x.get_mpz_t(), P1.y.get_mpz_t());
+    //gmp_printf("out 1 P2: %Zd, %Zd\n", P2.x.get_mpz_t(), P2.y.get_mpz_t());
+    //gmp_printf("out 1 P3: %Zd, %Zd\n", P3->x.get_mpz_t(), P3->y.get_mpz_t());
+    //fflush(stdout);
     return 1;
   }
 
@@ -245,6 +256,11 @@ int addition_1(mpz_class n, struct point P1, struct point P2, struct point *P3)
   /* calculate y3 = m(x1 - x3) - y1 mod n */
   P3->y = modpos(m * (P1.x - P3->x) - P1.y, n);
 
+  //gmp_printf("out 0 n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("out 0 P1: %Zd, %Zd\n", P1.x.get_mpz_t(), P1.y.get_mpz_t());
+  //gmp_printf("out 0 P2: %Zd, %Zd\n", P2.x.get_mpz_t(), P2.y.get_mpz_t());
+  //gmp_printf("out 0 P3: %Zd, %Zd\n", P3->x.get_mpz_t(), P3->y.get_mpz_t());
+  //fflush(stdout);
   return 0;
 }
 
@@ -252,6 +268,12 @@ void addition_2(mpz_class a, mpz_class n, struct point P1, struct point *P3)
 /* affine coords */
 /* P1 == P2 */
 {
+  //gmp_printf("in n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("in a=%Zd\n", a.get_mpz_t());
+  //gmp_printf("in P1: %Zd, %Zd\n", P1.x.get_mpz_t(), P1.y.get_mpz_t());
+  //gmp_printf("in P3: %Zd, %Zd\n", P3->x.get_mpz_t(), P3->y.get_mpz_t());
+  //fflush(stdout);
+
   mpz_class m;
 
   /* calculate m = (3x1 ^ 2 + a)(2y1) ^ -1 mod n */
@@ -262,12 +284,25 @@ void addition_2(mpz_class a, mpz_class n, struct point P1, struct point *P3)
 
   /* calculate y3 = m(x1 - x3) - y1 mod n */
   P3->y = modpos(m * (P1.x - P3->x) - P1.y, n);
+
+  //gmp_printf("out 0 n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("out 0 a=%Zd\n", a.get_mpz_t());
+  //gmp_printf("out 0 P1: %Zd, %Zd\n", P1.x.get_mpz_t(), P1.y.get_mpz_t());
+  //gmp_printf("out 0 P3: %Zd, %Zd\n", P3->x.get_mpz_t(), P3->y.get_mpz_t());
+  //fflush(stdout);
 }
 
 int multiply(mpz_class a, mpz_class k, mpz_class n, struct point P, struct point *R, mpz_class *d)
 /* binary ladder */
 /* returns -1 if O encountered, 0 if divisor not found, 1 otherwise */
 {
+  //gmp_printf("in a=%Zd\n", a.get_mpz_t());
+  //gmp_printf("in k=%Zd\n", k.get_mpz_t());
+  //gmp_printf("in n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("in d=%Zd\n", d->get_mpz_t());
+  //gmp_printf("in P: %Zd, %Zd\n", P.x.get_mpz_t(), P.y.get_mpz_t());
+  //gmp_printf("in R: %Zd, %Zd\n", R->x.get_mpz_t(), R->y.get_mpz_t());
+  //fflush(stdout);
   int value = 1;
   struct point A, B, C;
 
@@ -308,6 +343,15 @@ int multiply(mpz_class a, mpz_class k, mpz_class n, struct point P, struct point
   R->y = modpos(R->y, n);
 
   if (R->x == 0 && R->y == 1) return -1;
+
+  //printf("value: %d\n", !value);
+  //gmp_printf("out a=%Zd\n", a.get_mpz_t());
+  //gmp_printf("out k=%Zd\n", k.get_mpz_t());
+  //gmp_printf("out n=%Zd\n", n.get_mpz_t());
+  //gmp_printf("out d=%Zd\n", d->get_mpz_t());
+  //gmp_printf("out P: %Zd, %Zd\n", P.x.get_mpz_t(), P.y.get_mpz_t());
+  //gmp_printf("out R: %Zd, %Zd\n", R->x.get_mpz_t(), R->y.get_mpz_t());
+  //fflush(stdout);
 
   return !value;
 }
@@ -2218,6 +2262,11 @@ int LenstrasECM(mpz_class *N, mpz_class *g, mpz_class Bmax)
 // return true if t < *q < m and *q prime
 bool check_for_factor(mpz_class *q, mpz_class m, mpz_class t)
 {
+  //gmp_printf("in q=%Zd\n", q->get_mpz_t());
+  //gmp_printf("in m=%Zd\n", m.get_mpz_t());
+  //gmp_printf("in t=%Zd\n", t.get_mpz_t());
+  //fflush(stdout);
+
   *q = m;
 
   if (Rabin_Miller(*q))
@@ -2229,10 +2278,21 @@ bool check_for_factor(mpz_class *q, mpz_class m, mpz_class t)
   while (*q % 3 == 0)
     *q /= 3;
 
-  if (*q < t)
+  if (*q < t) {
+    //gmp_printf("out f q=%Zd\n", q->get_mpz_t());
+    //gmp_printf("out f m=%Zd\n", m.get_mpz_t());
+    //gmp_printf("out f t=%Zd\n", t.get_mpz_t());
+    //fflush(stdout);
     return false;
+  }
   if (*q < m && Rabin_Miller(*q))
+  {
+    //gmp_printf("out t q=%Zd\n", q->get_mpz_t());
+    //gmp_printf("out t m=%Zd\n", m.get_mpz_t());
+    //gmp_printf("out t t=%Zd\n", t.get_mpz_t());
+    //fflush(stdout);
     return true;
+  }
 
   mpz_class d = 1;
   mpz_class oldq;
@@ -2240,12 +2300,26 @@ bool check_for_factor(mpz_class *q, mpz_class m, mpz_class t)
   do {
     oldq = *q;
     LenstrasECM(q, &d, Bmax);
-    if (*q < t)
+    if (*q < t) {
+      //gmp_printf("out f q=%Zd\n", q->get_mpz_t());
+      //gmp_printf("out f m=%Zd\n", m.get_mpz_t());
+      //gmp_printf("out f t=%Zd\n", t.get_mpz_t());
+      //fflush(stdout);
       return false;
-    if (*q < m && Rabin_Miller(*q))
+    }
+    if (*q < m && Rabin_Miller(*q)) {
+      //gmp_printf("out t q=%Zd\n", q->get_mpz_t());
+      //gmp_printf("out t m=%Zd\n", m.get_mpz_t());
+      //gmp_printf("out t t=%Zd\n", t.get_mpz_t());
+      //fflush(stdout);
       return true;
+    }
   } while (*q < oldq);
 
+  //gmp_printf("out f q=%Zd\n", q->get_mpz_t());
+  //gmp_printf("out f m=%Zd\n", m.get_mpz_t());
+  //gmp_printf("out f t=%Zd\n", t.get_mpz_t());
+  //fflush(stdout);
   return false;
 }
 
