@@ -14,6 +14,10 @@
 #include <gmp.h>
 #include <assert.h>
 
+extern "C" {
+  #include "aks.h"
+}
+
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;
 const unsigned int MAX_POINTS = 100;
@@ -52,7 +56,7 @@ void InitDiscriminants(void)
                 //-388,-408,-435,-483,-520,-532,-555,-568,-595,-627,-667,-708,
                 //-715,-723,-760,-763,-772,-795,-955,-1003,-1012,-1027,-1227,
                 //-1243,-1387,-1411,-1435,-1507,-1555};
-  
+
   // Call mpz_init on each array element and assign its value
   for(unsigned int i=0;i<MAX_DISCRIMINANTS;i++)
   {
@@ -547,7 +551,7 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
 
   // Compute inverse (2y)^-1 first
   mpz_invert(m, m, theN);
-  
+
   // Compute (3x^2 + a)
   mpz_mul(R.x, theP.x, theP.x);
   mpz_mul_ui(R.x, R.x, 3);
@@ -556,7 +560,7 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
   // Compute m = (3x^2 + a)(2y)^-1
   mpz_mul(m, R.x, m);
   mpz_mod(m, m, theN);
-  
+
   // Compute R.x = m^2 - 2x
   mpz_powm_ui(R.x, m, 2, theN);
   mpz_submul_ui(R.x, theP.x, 2);
@@ -705,7 +709,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
   mpz_t g;  // The factor found if any
   mpz_t t;  // Temporary value for computing b
   mpz_t p;  // Prime number to test for factor
-  
+
   // Initialize our values
   mpz_init(P.x);
   mpz_init(P.y);
@@ -717,7 +721,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
 
   // Loop until either a factor is found or we give up trying
   unsigned long B1 = MIN_LENSTRA_B1;
-  do 
+  do
   {
     for(unsigned int i = 0; i < MAX_LENSTRA_CURVES; i++)
     {
@@ -728,7 +732,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
       mpz_urandomm(P.y, gRandomState, theN);
       // Pick a random a from 0 to N-1
       mpz_urandomm(a, gRandomState, theN);
-      
+
       // Compute b = (y^2 - x^3 - ax) mod n
       mpz_pow_ui(b, P.y, 2); // y^2
       mpz_pow_ui(t, P.x, 3); // x^3
@@ -754,17 +758,17 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
       {
         // Return theQ = theN / g;
         mpz_remove(*theQ, theN, g);
-        
+
         // Factor g was found, return theQ = theN / g
         anResult = true;
 
         // Break out of the loop, a factor was found!
         break;
       }
-      
+
       // Start with prime 2 and work our way up from there
       mpz_set_ui(p, 2);
-      
+
       // Step 2: Prime-power multipliers
       do
       {
@@ -784,7 +788,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
 
         // Step 2b: Compute P=pP where P is our point and p is our prime to test
         bool found = Multiply(&P, &g, t, P, theN, a);
-        
+
         // An illegal value was found such that g is a divisor of theN
         if(found)
         {
@@ -793,7 +797,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
 
           // Factor g was found, return theQ = theN / g
           anResult = true;
-        
+
           // Break out of the loop, a factor was found!
           break;
         }
@@ -815,7 +819,7 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
   mpz_clear(a);
   mpz_clear(P.y);
   mpz_clear(P.x);
-  
+
   // Return true if factor was found and theQ = theN / g
   return anResult;
 }
@@ -844,7 +848,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
 
   // Loop through MAX_PRIMES prime numbers and try to remove them from theQ
   unsigned long count = MAX_PRIMES; // Primes to try to remove from theQ
-  do 
+  do
   {
     // Remove as many of this prime as possible
     mpz_remove(*theQ, *theQ, prime);
@@ -863,7 +867,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
   // Make sure theQ is still larger than theT
   if(mpz_cmp(*theQ, theT) < 0)
     return false; // theQ is smaller than theT
-  
+
   // Step 3: Use LenstraECM to try an find factors
   bool found = false;
   count = 0;
@@ -1687,10 +1691,10 @@ bool AtkinMorain(mpz_t& theN)
       {
         // N is proven prime
         anResult = true;
-        
+
         // We are done
         anDone = true;
-        
+
         // Exit the discriminant loop
         break;
       }
@@ -1720,7 +1724,7 @@ bool AtkinMorain(mpz_t& theN)
       // a new discriminant D and curve m.
       if(!FactorOrders(&m, &q, u, v, n, gD[anIndexD], Bmax))
         continue; // No factor q or curve m was found, try another discriminant
-      //gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n", 
+      //gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n",
       //  gD[anIndexD], u, v, m, q);
 
       // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
@@ -1801,7 +1805,7 @@ bool AtkinMorain(mpz_t& theN)
 
             // Reset our Bmax value
             Bmax = AVG_LENSTRA_B1;
-            
+
             // Exit the points loop
             points = MAX_POINTS;
 
@@ -1822,15 +1826,23 @@ bool AtkinMorain(mpz_t& theN)
         points += k;
       } while(!anDone && points < MAX_POINTS);
     } // while(!anDone && anIndexD+1 < MAX_DISCRIMINANTS)
-    
+
     // Increment Bmax by 10 and try everything all over again!
     Bmax *= 10;
   } while(!anDone && Bmax < MAX_LENSTRA_B1);
-  
+
   // Warn the user that we ran out of discriminants before finding answer
   if(false == anDone && (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
   {
-    printf("Atkin-Morain proof inconclusive!\n");
+    int aks_result;
+
+    printf("Atkin-Morain proof inconclusive! Running AKS...\n");
+
+    aks_result = is_prime(n);
+    printf("AKS result on %Zd: %d\n", n, aks_result);
+
+    // TODO: comment out the following line?
+    anResult = aks_result;
   }
 
   // Clear our values used above
@@ -1856,7 +1868,7 @@ bool AtkinMorain(mpz_t& theN)
 int main(int argc, char* argv[])
 {
   mpz_t anNumber;  // Number to be tested for Primality
-  
+
   // Initialize our random generator first
   gmp_randinit_default(gRandomState);
 
