@@ -1,5 +1,6 @@
 #include <gmp.h>
 #include <sys/time.h>
+#include <stdlib.h>
 
 int is_prime(const mpz_t n);
 

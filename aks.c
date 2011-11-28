@@ -15,13 +15,13 @@ void compute_logn(mpz_t rop, mpz_t n) {
   mpfr_set_z(tmp, n, MPFR_RNDN);
   mpfr_log(tmp, tmp, MPFR_RNDN);
   mpfr_get_z(rop, tmp, MPFR_RNDN);
-  mpfr_clear(tmp);  
+  mpfr_clear(tmp);
 }
 
 void compute_logn2(mpz_t rop, mpz_t n) {
   mpfr_t tmp;
   mpfr_init(tmp);
-  
+
   mpfr_set_z(tmp, n, MPFR_RNDN);
   mpfr_log(tmp, tmp, MPFR_RNDA);
   mpfr_pow_ui(tmp, tmp, 2, MPFR_RNDA);
@@ -263,7 +263,7 @@ int is_prime(mpz_t n) {
   }
 
   mpz_clear(r);
-  return PRIME; 
+  return PRIME;
 }
 
 int main(int argc, char** argv) {
