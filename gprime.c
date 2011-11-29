@@ -1,8 +1,7 @@
+#include "miller-rabin.h"
 #include <gmp.h>
 #include <sys/time.h>
 #include <stdlib.h>
-
-int is_prime(const mpz_t n);
 
 int main(int argc, char** argv) {
   if (argc < 3) {
@@ -31,7 +30,7 @@ int main(int argc, char** argv) {
   for (mpz_set_ui(count, 0); mpz_cmp(count, max) < 0; mpz_add_ui(count, count, 1)) {
     mpz_urandomm(n, state, max);
     mpz_add(n, n, min);
-    if (is_prime(n)) {
+    if (miller_rabin_is_prime(n)) {
       break;
     }
     else {

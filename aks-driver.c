@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
   mpz_t n;
   mpz_init(n);
   gmp_scanf("%Zd", &n);
-  int prime = is_prime(n);
+  int prime = aks_is_prime(n);
   gmp_printf("%d\n", prime);
   mpz_clear(n);
   mpfr_free_cache();

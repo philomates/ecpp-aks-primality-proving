@@ -10,17 +10,17 @@ CXX_LIBS=-L/opt/local/lib -lgmpxx -lgmp
 all: ecpp atkin aks miller-rabin gprime
 
 # primality tests
-ecpp: ecpp.cpp aks.c aks.h
+ecpp: ecpp.cpp aks.c aks.h miller-rabin.c miller-rabin.h
 	$(CC) $(INCLUDE) $? -o ecpp-aks $(CC_LIBS)
 
-miller-rabin: mrlib.c miller-rabin.c
+miller-rabin: miller-rabin.c miller-rabin.h miller-rabin-driver.c
 	$(CC) $(INCLUDE) $? -o miller-rabin $(CC_LIBS)
 
-aks: aks.c aks_driver.c
+aks: aks.c aks.h aks-driver.c
 	$(CC) $(INCLUDE) $? -o aks $(CC_LIBS)
 
 # helpers
-gprime: mrlib.c gprime.c
+gprime: miller-rabin.c miller-rabin.h gprime.c
 	$(CC) $(INCLUDE) $? -o gprime $(CC_LIBS)
 
 # reference implementation
@@ -30,3 +30,4 @@ atkin: atkin237.cpp
 clean:
 	@echo Cleaning Primes Project
 	rm -f *.o ecpp-aks atkin aks miller-rabin gprime
+

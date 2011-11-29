@@ -14,6 +14,6 @@ void polymul(mpz_t*, mpz_t*, unsigned int, mpz_t*, unsigned int, mpz_t);
 void clear_poly(mpz_t*, unsigned int);
 int check_poly(mpz_t, mpz_t, mpz_t);
 int check_polys(mpz_t, mpz_t);
-int is_prime(mpz_t);
+int aks_is_prime(mpz_t);
 
 #endif // PRIMES_AKS_H_

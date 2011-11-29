@@ -226,7 +226,7 @@ int check_polys(mpz_t r, mpz_t n) {
   return status;
 }
 
-int is_prime(mpz_t n) {
+int aks_is_prime(mpz_t n) {
   if (mpz_cmp_ui(n, 2) == 0) {
     return PRIME;
   }

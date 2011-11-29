@@ -16,6 +16,7 @@
 
 extern "C" {
   #include "aks.h"
+  #include "miller-rabin.h"
 }
 
 // Global constants
@@ -850,7 +851,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
 
   // Step 1: Make sure theQ is not probably prime and >= theN
   // If theQ >= theN and is prime then stop now and try another curve
-  if(mpz_probab_prime_p(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
+  if(miller_rabin_is_prime_k(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
     return false;
 
   // Step 2: Perform a simple sieve of the smaller primes starting with 2
@@ -1839,7 +1840,7 @@ bool AtkinMorain(mpz_t& theN)
     (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
   {
     printf("Atkin-Morain proof incomplete! Running AKS...\n");
-    int aks_result = is_prime(n);
+    int aks_result = aks_is_prime(n);
 
     gmp_printf("AKS result on %Zd: ", n);
     // Did AKS prove n to be composite?
