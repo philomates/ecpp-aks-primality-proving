@@ -3,43 +3,30 @@ CXX=g++
 
 INCLUDE=-I/opt/local/include
 
-CC_LIBS=-L/opt/local/lib -lgmp
+CC_LIBS=-L/opt/local/lib -lgmp -lmpfr
 CXX_LIBS=-L/opt/local/lib -lgmpxx -lgmp
 
 
 all: ecpp atkin aks miller-rabin gprime
 
 # primality tests
-ecpp: ecpp.o aks.o
-	$(CC) $(INCLUDE) $(CC_LIBS) -lmpfr -o ecpp aks.o ecpp.o
+ecpp: ecpp.cpp aks.c aks.h
+	$(CC) $(INCLUDE) $? -o ecpp-aks $(CC_LIBS)
 
-ecpp.o: ecpp.cpp aks.h
-	$(CC) -c ecpp.cpp
+miller-rabin: mrlib.c miller-rabin.c
+	$(CC) $(INCLUDE) $? -o miller-rabin $(CC_LIBS)
 
-miller-rabin: mrlib.o miller-rabin.c
-	$(CC) $(INCLUDE) $(CC_LIBS) -o miller-rabin mrlib.o miller-rabin.c
-
-aks: aks.o aks_driver.o
-	$(CC) $(INCLUDE) $(CC_LIBS) -lmpfr -o aks aks_driver.o aks.o
-
-aks.o: aks.c aks.h
-	$(CC) -c $<
-
-aks_driver.o: aks_driver.c aks.h
-	$(CC) -c $<
+aks: aks.c aks_driver.c
+	$(CC) $(INCLUDE) $? -o aks $(CC_LIBS)
 
 # helpers
-gprime: mrlib.o gprime.c
-	$(CC) $(INCLUDE) $(CC_LIBS) -o gprime mrlib.o gprime.c
-
-mrlib.o: mrlib.c
-	$(CC) $(INCLUDE) -c mrlib.c
+gprime: mrlib.c gprime.c
+	$(CC) $(INCLUDE) $? -o gprime $(CC_LIBS)
 
 # reference implementation
 atkin: atkin237.cpp
-	$(CXX) $(INCLUDE) $(CXX_LIBS) -o atkin atkin237.cpp
-
+	$(CXX) $(INCLUDE) $? -o atkin $(CXX_LIBS)
 
 clean:
 	@echo Cleaning Primes Project
-	rm -f *.o ecpp atkin aks miller-rabin gprime
+	rm -f *.o ecpp-aks atkin aks miller-rabin gprime
