@@ -1,3 +1,5 @@
+#!/usr/local/bin/python26
+
 import sys
 
 n = sys.argv[1]
