@@ -5,7 +5,8 @@ if [[ $# != 1 ]]; then
   exit 1
 fi
 
-GPRIME=../gprime
+DIR=`dirname $0`
+GPRIME=$DIR/../gprime
 
 if [[ ! -e $GPRIME ]]; then
   echo "make gprime has not been run"

@@ -22,14 +22,12 @@ int miller_rabin_is_prime(const mpz_t n) {
 
 int miller_rabin_is_prime_k(const mpz_t n, unsigned int k) {
   int retval, i;
-  mpz_t s, d, a, x, r, n_minus_one, n_minus_three;
+  mpz_t s, d, a, x, r, n_minus_one, n_minus_four;
 
-  if (mpz_cmp_ui(n, 2) == 0)
-    return COMPOSITE;
+  if (mpz_cmp_ui(n, 2) == 0 || mpz_cmp_ui(n, 3) == 0)
+    return PRIME;
   if (mpz_cmp_ui(n, 1) <= 0 || mpz_divisible_ui_p(n, 2))
     return COMPOSITE;
-  if (mpz_cmp_ui(n, 3) == 0)
-    return PRIME;
 
   gmp_randstate_t state;
   gmp_randinit_default(state);
@@ -40,16 +38,16 @@ int miller_rabin_is_prime_k(const mpz_t n, unsigned int k) {
   mpz_init(x);
   mpz_init(r);
   mpz_init(n_minus_one);
-  mpz_init(n_minus_three);
+  mpz_init(n_minus_four);
 
   mpz_sub_ui(n_minus_one, n, 1); 
-  mpz_sub_ui(n_minus_three, n, 3); 
+  mpz_sub_ui(n_minus_four, n, 4); 
 
   factor_powers_of_2(s, d, n_minus_one);
 
   retval = PRIME;
   for (i = 0; i < k; i++) {
-    mpz_urandomm(a, state, n_minus_three);
+    mpz_urandomm(a, state, n_minus_four);
     mpz_add_ui(a, a, 2);
     mpz_powm(x, a, d, n);
     if (mpz_cmp_ui(x, 1) == 0 || mpz_cmp(x, n_minus_one) == 0) {
@@ -73,7 +71,9 @@ int miller_rabin_is_prime_k(const mpz_t n, unsigned int k) {
       break;
     }
   }
-  retval = PRIME;
+  if (retval == UNDECIDED) {
+    retval = PRIME;
+  }
 
   gmp_randclear(state);
 
@@ -83,7 +83,7 @@ int miller_rabin_is_prime_k(const mpz_t n, unsigned int k) {
   mpz_clear(x);
   mpz_clear(r);
   mpz_clear(n_minus_one);
-  mpz_clear(n_minus_three);
+  mpz_clear(n_minus_four);
 
   return retval;
 }

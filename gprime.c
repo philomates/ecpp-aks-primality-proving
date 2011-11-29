@@ -3,11 +3,19 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
+#define TRUE 1
+#define FALSE 0
+
 int main(int argc, char** argv) {
   if (argc < 3) {
-    gmp_printf("usage: gprime min max\n");
+    gmp_printf("usage: gprime min maxi [-n]\n");
     return 1;
   }
+
+  int generate_non_prime = FALSE;
+  if (argc > 4 && strcmp(argv[3], "-n")) {
+    generate_non_prime = TRUE;
+  } 
 
   gmp_randstate_t state;
   mpz_t n, min, max, count;
@@ -27,10 +35,12 @@ int main(int argc, char** argv) {
   mpz_sub(max, max, min);
   mpz_add_ui(max, max, 1);
 
+  int is_prime;
   for (mpz_set_ui(count, 0); mpz_cmp(count, max) < 0; mpz_add_ui(count, count, 1)) {
     mpz_urandomm(n, state, max);
     mpz_add(n, n, min);
-    if (miller_rabin_is_prime(n)) {
+    is_prime = miller_rabin_is_prime(n);
+    if ((!is_prime && generate_non_prime) || (is_prime && !generate_non_prime)) {
       break;
     }
     else {
