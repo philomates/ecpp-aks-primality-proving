@@ -792,10 +792,20 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
         // An illegal value was found such that g is a divisor of theN
         if(found)
         {
-          // Return theQ = theN / g;
-          mpz_remove(*theQ, theN, g);
+          // Was the only factor found the same as theN? then return theN
+          if(mpz_cmp(g, theN) == 0)
+          {
+            // theN is prime already so just return it
+            mpz_set(*theQ, theN);
+          }
+          // Otherwise return theQ = theN / g
+          else
+          {
+            // We found a significant factor so return it
+            mpz_remove(*theQ, theN, g);
+          }
 
-          // Factor g was found, return theQ = theN / g
+          // Factor g was found, return theQ assigned above
           anResult = true;
 
           // Break out of the loop, a factor was found!
@@ -870,7 +880,6 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
 
   // Step 3: Use LenstraECM to try an find factors
   bool found = false;
-  count = 0;
   do
   {
     // Did we find a factor such that theQ = theN / x?
@@ -884,13 +893,6 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
     if(mpz_cmp(*theQ, theM) < 0 && mpz_probab_prime_p(*theQ, 10))
     {
       return true;
-    }
-
-    // How many times should we keep trying to factor this number?
-    if(!found && count < 10)
-    {
-      count++;
-      found = true;
     }
   } while(found);
 
@@ -1831,18 +1833,20 @@ bool AtkinMorain(mpz_t& theN)
     Bmax *= 10;
   } while(!anDone && Bmax < MAX_LENSTRA_B1);
 
-  // Warn the user that we ran out of discriminants before finding answer
-  if(false == anDone && (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
+  // If we were on track to prove N is prime but ran out of discriminants, then use AKS to prove the
+  // last N (q) value as prime
+  if(false == anDone && true == anResult &&
+    (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
   {
-    int aks_result;
+    printf("Atkin-Morain proof incomplete! Running AKS...\n");
+    int aks_result = is_prime(n);
 
-    printf("Atkin-Morain proof inconclusive! Running AKS...\n");
-
-    aks_result = is_prime(n);
-    printf("AKS result on %Zd: %d\n", n, aks_result);
-
-    // TODO: comment out the following line?
-    anResult = aks_result;
+    gmp_printf("AKS result on %Zd: ", n);
+    // Did AKS prove n to be composite?
+    if(aks_result == 0)
+    {
+      anResult = false;
+    }
   }
 
   // Clear our values used above
