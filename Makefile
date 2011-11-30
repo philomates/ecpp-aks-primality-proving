@@ -1,27 +1,33 @@
 CC=gcc
 CXX=g++
 
-INCLUDE=-I/opt/local/include
+INCLUDE=-I/opt/local/include -O3
 
 CC_LIBS=-L/opt/local/lib -lgmp -lmpfr
 CXX_LIBS=-L/opt/local/lib -lgmpxx -lgmp
 
-
 all: ecpp atkin aks miller-rabin gprime
 
 # primality tests
-ecpp: ecpp.cpp aks.c aks.h miller-rabin.c miller-rabin.h
-	$(CC) $(INCLUDE) $? -o ecpp-aks $(CC_LIBS)
+ecpp: ecpp.cpp aks.o miller-rabin.o
+	$(CC) $(INCLUDE) $? -o run $(CC_LIBS)
 
-miller-rabin: miller-rabin.c miller-rabin.h miller-rabin-driver.c
+miller-rabin:  miller-rabin-driver.c miller-rabin.o
 	$(CC) $(INCLUDE) $? -o miller-rabin $(CC_LIBS)
 
-aks: aks.c aks.h aks-driver.c
+aks: aks-driver.c aks.o
 	$(CC) $(INCLUDE) $? -o aks $(CC_LIBS)
 
 # helpers
-gprime: miller-rabin.c miller-rabin.h gprime.c
+gprime: gprime.c miller-rabin.o
 	$(CC) $(INCLUDE) $? -o gprime $(CC_LIBS)
+
+# libs
+aks.o: aks.c aks.h
+	$(CC) $(INCLUDE) $? -c $(CC_LIBS)
+
+miller-rabin.o: miller-rabin.c miller-rabin.c
+	$(CC) $(INCLUDE) $? -c $(CC_LIBS)
 
 # reference implementation
 atkin: atkin237.cpp
@@ -29,5 +35,5 @@ atkin: atkin237.cpp
 
 clean:
 	@echo Cleaning Primes Project
-	rm -f *.o ecpp-aks atkin aks miller-rabin gprime
+	rm -f *.o run atkin aks miller-rabin gprime
 
