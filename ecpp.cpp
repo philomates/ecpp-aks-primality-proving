@@ -2,7 +2,11 @@
  * @author Ryan Lindeman
  * @class  CS6150
  * @description Implementation of the Atkin-Morain primality test using
- * Elliptic curve primality proving (ECPP)
+ * Elliptic curve primality proving (ECPP). Many of the algorithms used
+ * by this program were described in the freely available book titled
+ * Prime Numbers - A Computational Perspective written by
+ * Richard Crandall and Carl Pomerance.  Many thanks goes out to these
+ * individuals without whose book this program would not be possible.
  *
  * History
  * @date 20111029 - Initial release
@@ -20,17 +24,19 @@ extern "C" {
 }
 
 // Global constants
-const unsigned int MAX_DISCRIMINANTS = 28;
-const unsigned int MAX_POINTS = 100;
-const unsigned int MAX_PRIMES =  1000;
-const unsigned int MIN_LENSTRA_B1 = 1000;
-const unsigned int AVG_LENSTRA_B1 = 2001;
-const unsigned int MAX_LENSTRA_B1 = 2000000000;
-const unsigned int MAX_LENSTRA_CURVES = 20;
+const unsigned int MAX_DISCRIMINANTS = 28;  ///< Number of discriminants
+const unsigned int MAX_POINTS = 100;  ///< Number of points to test
+const unsigned int MAX_PRIMES =  1000;  ///< Number of primes for sieve
+const unsigned int MIN_LENSTRA_B1 = 1000; ///< Minimum primes for LenstraECM
+const unsigned int AVG_LENSTRA_B1 = 2001; ///< Upper limit for LenstraECM
+const unsigned int MAX_LENSTRA_B1 = 2000000000;  ///< Maximum for ECPP
+const unsigned int MAX_LENSTRA_CURVES = 20;  ///< Number of curves to use
 
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
-mpz_t gD[MAX_DISCRIMINANTS];
+mpz_t gD[MAX_DISCRIMINANTS];  ///< Fixed array of discriminants
+bool gDebug = false;  ///< Debug flag for additional debug output
+bool gCertificate = false;  ///< Certificate flag for printing certificate
 
 // Point structure
 struct Point
@@ -58,14 +64,22 @@ void InitDiscriminants(void)
                 //-715,-723,-760,-763,-772,-795,-955,-1003,-1012,-1027,-1227,
                 //-1243,-1387,-1411,-1435,-1507,-1555};
 
+  if(gDebug)
+  {
+    printf("Static discriminant list includes the following:\n");
+  }
+
   // Call mpz_init on each array element and assign its value
   for(unsigned int i=0;i<MAX_DISCRIMINANTS;i++)
   {
     // Initialize and set each gD array element
     mpz_init_set_si(gD[i], anD[i]);
 
-    // Display discriminants available
-    //gmp_printf("%d=%Zd\n", i, gD[i]);
+    if(gDebug)
+    {
+      // Display discriminants available
+      gmp_printf("%d=%Zd\n", i, gD[i]);
+    }
   }
 }
 
@@ -84,8 +98,11 @@ void FactorPow2(mpz_t* s, mpz_t* t, mpz_t& n)
 }
 
 /**
- * SquareMod returns the solution x to x^2 === a (mod p) which is used by the
- * ModifiedCornacchia to find the initial square root.
+ * SquareMod returns the solution x that satisfies the following equation:
+ * x^2 === a (mod p). This is an implementation of algorithm (2.3.8).  The
+ * book indicates that algorithm (2.3.9) is faster, but more complicated to
+ * implement. If your desperate for more speed you should focus on improving
+ * FindFactor first.
  */
 bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
 {
@@ -216,6 +233,7 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
       mpz_t d, s, t, A, D, m, i;
       mpz_t anExp1, anExp2, anModP, two;
 
+      // Initialize our variables used for case 2
       mpz_init(d);
       mpz_init(s);
       mpz_init(t);
@@ -288,6 +306,7 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
       mpz_mod(anExp1, anExp1, theP);
       mpz_set(*theX, anExp1);
 
+      // Clear our case 2 variables
       mpz_clear(two);
       mpz_clear(anModP);
       mpz_clear(anExp2);
@@ -300,6 +319,7 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
       mpz_clear(s);
       mpz_clear(d);
 
+      // A result was found, return true
       anResult = true;
     }
 
@@ -322,7 +342,8 @@ bool SquareMod(mpz_t* theX, mpz_t& theA, mpz_t& theP)
 /**
  * ModifiedCornacchia will either report that no solution exists for
  * 4p = u^2 + abs(D)v^2 (where p is a given prime and -4p < D < 0 or returns
- * the solution (u, v)
+ * the solution (u, v). This algorithm is based on algorithm (2.3.13) in
+ * the book.
  */
 bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
 {
@@ -367,8 +388,11 @@ bool ModifiedCornacchia(mpz_t* theU, mpz_t* theV, mpz_t& theP, mpz_t& theD)
     mpz_clear(dt);
     mpz_clear(xt);
   } else {
-    // Warn the user and proceed anyway with x0 = 0
-    printf("x0 not found!?\n");
+    if(gDebug)
+    {
+      // Warn the user and proceed anyway with x0 = 0
+      printf("x0 not found!?\n");
+    }
   }
 
   // Initialize Euclid chain
@@ -585,8 +609,10 @@ void Double(struct Point* theR, struct Point& theP, mpz_t& theN, mpz_t& theA)
 
 /**
  * Multiply implements the Elliptical multiplication method described by
- * algorithm (7.2.4). This will return true if an illegal inversion occurred
- * during one of the Elliptical add method calls.
+ * algorithm (7.2.4).  This implementation doesn't completely match the
+ * algorithm described in the book, but has been proven to yield the same
+ * results as much as I can test. This will return true if an illegal
+ * inversion occurred during one of the Elliptical add method calls.
  */
 bool Multiply(struct Point* theR, mpz_t* theD, mpz_t& theM, struct Point& P,
               mpz_t& theN, mpz_t& theA)
@@ -697,9 +723,13 @@ bool Multiply(struct Point* theR, mpz_t* theD, mpz_t& theM, struct Point& P,
 
 /**
  * LenstraECM will attempt to find the largest non-trivial prime number that
- * will factor theN provided according to algorithm (7.4.2). This is called by
+ * will factor theN provided according to algorithm (7.4.2). The book says
+ * that algorithm (7.4.4) is a faster implementation. This method is called by
  * FindFactor to find a probable prime (theQ) that if also proven prime will
- * be part of the certificate proving theN to be prime.
+ * be part of the certificate proving theN to be prime. The book says that
+ * LenstraECM is only the 3rd fastest algorithm for finding factors.  If you
+ * want to improve the running time of this program, replace this with another
+ * algorithm that is faster.
  */
 bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
 {
@@ -837,9 +867,12 @@ bool LenstraECM(mpz_t* theQ, mpz_t& theN, unsigned long Bmax)
 
 /**
  * FindFactor will attempt to reduce theM provided to a potential prime theQ
- * that is also less than theT by factoring all easy primes out of theM.  If
- * theM is a composite then FindFactor will return false meaning theQ wasn't
- * found because m is a composite.
+ * that is also less than theT by factoring all primes out of theM.  If theM
+ * is prime and also bigger than theN then FindFactor will return false
+ * meaning theQ can't be found because it would be bigger than theN! My
+ * general feel is that this is the part of the code that takes the most
+ * running time.  If you can speed this up, you will make significant increase
+ * to the running time of the ECPP algorithm.
  */
 bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
                 unsigned long Bmax)
@@ -867,19 +900,25 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
     // Find the next prime to try to remove from theQ
     mpz_nextprime(prime, prime);
 
-    // Is theQ prime now? then exit our loop
-    if(mpz_probab_prime_p(*theQ, 10))
-      break;
+    // Make sure theQ is still larger than theT
+    if(mpz_cmp(*theQ, theT) < 0)
+      return false; // theQ is smaller than theT
+
+    // Is theQ prime and smaller than theN now? then return theQ
+    if(mpz_cmp(*theQ, theN) < 0 && mpz_probab_prime_p(*theQ, 10))
+    {
+      // Clear our prime value used above and return now
+      mpz_clear(prime);
+
+      // We found a suitable theQ value, stop now
+      return true;
+    }
   } while(mpz_cmp(*theQ, theT) >= 0 && count-- > 0);
 
   // Clear our prime value used above
   mpz_clear(prime);
 
-  // Make sure theQ is still larger than theT
-  if(mpz_cmp(*theQ, theT) < 0)
-    return false; // theQ is smaller than theT
-
-  // Step 3: Use LenstraECM to try an find factors
+  // Step 3: Use LenstraECM to try to find additional factors
   bool found = false;
   do
   {
@@ -891,7 +930,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
       return false; // theQ is smaller than theT
 
     // Have we found something smaller than theM that is also prime?
-    if(mpz_cmp(*theQ, theM) < 0 && mpz_probab_prime_p(*theQ, 10))
+    if(mpz_cmp(*theQ, theN) < 0 && mpz_probab_prime_p(*theQ, 10))
     {
       return true;
     }
@@ -901,8 +940,8 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
   if(mpz_cmp(*theQ, theM) == 0)
     return false;
 
-  // Make sure theQ <= theN
-  if(mpz_cmp(*theQ, theN) > 0)
+  // Make sure theQ < theN
+  if(mpz_cmp(*theQ, theN) >= 0)
     return false;
 
   // Return false, we didn't find a suitable q
@@ -913,7 +952,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
  * FactorOrders attempts to find a possible order m that factors as m = kq
  * where k > 1 and q is a probable prime > (n^0.25 + 1)^2. If this can't be
  * done after K_max iterations than return FALSE and choose a new discriminant
- * D and curve m.
+ * D and curve m. This is based on step 2 of algorithm (7.6.3).
  */
 bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
                   mpz_t& theN, mpz_t& theD, unsigned long Bmax)
@@ -1074,7 +1113,7 @@ bool FactorOrders(mpz_t* theM, mpz_t* theQ, mpz_t& theU, mpz_t& theV,
 /**
  * CalculateNonresidue will find a random quadratic nonresidue g mod p and if
  * theD == -3 then g must also be a cubic nonresidue. This is based on step 1
- * of algorithm (7.5.9) or step 2b of algorithm (7.5.10)
+ * of algorithm (7.5.9) or step 2b of algorithm (7.5.10).
  */
 void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
 {
@@ -1122,7 +1161,13 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
   mpz_clear(t);
 }
 
-// Lookup Table 7.1
+/**
+ * LookupCurveParameters returns the r and s values found in Table 7.1 found
+ * in the book.  This enables us to use a fixed list of discriminant values
+ * without the burden of implementing the algorithm (7.5.8) to satisfy step 6
+ * of algorithm (7.5.9).  Instead this is based on algorithm (7.5.10) instead
+ * of algorithm (7.5.9).
+ */ 
 bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
 {
   signed long int D = mpz_get_si(d);
@@ -1134,7 +1179,8 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
   mpz_init(tmp2);
 
   // Find the discriminant in our table of class 1 and 2 discriminants
-  switch(D) {
+  switch(D)
+  {
     case -7:
       mpz_set_ui(*r, 125);
       mpz_set_ui(*s, 189);
@@ -1336,8 +1382,10 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
 
 /**
  * ObtainCurveParameters will attempt to obtain the curve parameters a and b
- * for an elliptic curve that would have order m if n is indeed prime. This is
- * based on steps 5-7 of algorithm (7.5.9) or steps 3-5 of algorithm (7.5.10).
+ * for an elliptic curve that would have order m if n is indeed prime. This
+ * implements algorithm (7.5.10). If you desire to add more discriminants to
+ * this ECPP implementation you will need to add steps 5 through 7 of
+ * algorithm (7.5.9) to the method below.
  */
 bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
                            mpz_t& theD, mpz_t& theG, unsigned int theK)
@@ -1370,7 +1418,6 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
         // Set b = -1 mod n = n - 1
         mpz_set(*theB,theN);
         mpz_sub_ui(*theB, *theB, 1);
-        //mpz_set_str(*theB, "273047738243666261637604519", 10);
       }
       // Handle other cases for theK < 6
       else
@@ -1443,7 +1490,10 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
 
       // Determine if theD can be found by LookupCurveParameters
       anResult = LookupCurveParameters(&r, &s, theN, theD);
-      gmp_printf("r=%Zd, s=%Zd\n", r, s);
+      if(gDebug)
+      {
+        gmp_printf("LookupCurveParameters: r=%Zd, s=%Zd\n", r, s);
+      }
 
       // Did LookupCurveParameters yield an r and s value?
       if(anResult)
@@ -1459,6 +1509,10 @@ bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
         mpz_mul(*theB, *theB, r);
         mpz_mul_ui(*theB, *theB, 2);
         mpz_mod(*theB, *theB, theN);
+      }
+      else
+      {
+        // TODO: Implement steps 5-7 of algorithm (7.5.9) here!
       }
 
       // Clear our r and s values provided by LookupCurveParameters
@@ -1557,10 +1611,12 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
 
 /**
  * EvaluatePoint will compute the multiple U = [m/q]P. Based on these results
- * N will be either composite or Q << N will need to be proven prime to prove
- * that N is prime. This will return -1 if N is found to be composite, 0 if
- * another point should be tested, or 1 if N is found to be prime if Q is
- * proven to be prime during the next iteration.
+ * N will either be composite or Q will be smaller than N and probably prime
+ * and we will then need to prove Q to be prime also to stand as a witness
+ * that N is also prime. This implements step 5 of algorithm (7.6.3) and will
+ * return -1 if N is found to be composite, 0 if another point should be
+ * tested, or 1 if N is found to be prime if Q is proven to be prime during
+ * the next ECPP iteration.
  */
 int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM,
                   mpz_t& theQ, mpz_t& theA, mpz_t& theB)
@@ -1618,8 +1674,9 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM,
 }
 
 /**
- * AtkinMorain implements the original Atkin-Morain ECPP algorithm for proving
- * N is prime.  It calls various functions above to perform the ECPP algorithm.
+ * AtkinMorain implements algorithm (7.6.3) which is the original Atkin-Morain
+ * ECPP algorithm used for proving N is prime. It calls various functions
+ * above to perform the algorithm.
  */
 bool AtkinMorain(mpz_t& theN)
 {
@@ -1663,7 +1720,11 @@ bool AtkinMorain(mpz_t& theN)
   // Loop through incrementally higher Bmax values if discriminant loop fails
   do
   {
-    printf("Bmax=%lu\n", Bmax);
+    if(gDebug)
+    {
+      printf("Bmax=%lu\n", Bmax);
+    }
+
     // Reset our discriminant index value
     anIndexD = 0;
 
@@ -1672,14 +1733,18 @@ bool AtkinMorain(mpz_t& theN)
     while(!anDone && anIndexD+1 < MAX_DISCRIMINANTS)
     {
       // Step 0: Use Miller-Rabin to test if theN is composite since there is
-      // no guarrentee that ECPP will successfully find a u and v in Step 1, but
-      // Miller-Rabin guarrentees to find all composites quickly.
+      // no guarrentee that ECPP will successfully find a u and v in Step 1,
+      // but Miller-Rabin guarantees to find all composites quickly.
       int anMillerRabin = mpz_probab_prime_p(n, 10);
 
       // Did Miller-Rabin prove n is composite?
       if(0 == anMillerRabin)
       {
-        printf("Miller-Rabin says n is composite!\n");
+        if(gDebug)
+        {
+          printf("Miller-Rabin says n is composite!\n");
+        }
+
         // N is composite
         anResult = false;
 
@@ -1703,7 +1768,8 @@ bool AtkinMorain(mpz_t& theN)
       }
       else
       {
-        // Continue with Atkin-Morain algorithm to prove n is prime or composite
+        // Continue with Atkin-Morain algorithm to prove n is prime or
+        // composite
       }
 
       // Step 1: ChooseDiscriminant will attempt to find a discriminant D that
@@ -1719,16 +1785,20 @@ bool AtkinMorain(mpz_t& theN)
       // Step 1b: Find a u and v that satisfies 4n = u^2 + ABS(D)v^2 using the
       // modified Cornacchia algorithm (2.3.13)
       if(!ModifiedCornacchia(&u, &v, n, gD[anIndexD]))
-        continue; // No solution found, u and v not set, try another discriminant
+        continue; // No solution u or v found, try another discriminant
 
-      // Step 2/3: FactorOrders attempts to find a possible order m that factors
-      // as m = kq where k > 1 and q is a probable prime > (n^0.25 + 1)^2. If
-      // this can't be done after K_max iterations than return FALSE and choose
-      // a new discriminant D and curve m.
+      // Step 2/3: FactorOrders attempts to find a possible order m that
+      // factors as m = kq where k > 1 and q is a probable prime greater than
+      // (n^0.25 + 1)^2. If this can't be done after K_max iterations than
+      // return FALSE and choose a new discriminant D and curve m.
       if(!FactorOrders(&m, &q, u, v, n, gD[anIndexD], Bmax))
         continue; // No factor q or curve m was found, try another discriminant
-      //gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n",
-      //  gD[anIndexD], u, v, m, q);
+
+      if(gDebug)
+      {
+        gmp_printf("Steps 1-3: d=%Zd, u=%Zd, v=%Zd, m=%Zd, q=%Zd\n",
+          gD[anIndexD], u, v, m, q);
+      }
 
       // Step 4a: CalculateNonresidue will find a random quadratic nonresidue
       // g mod p and if D=-3 a noncube g^3 mod p for use in step 4b
@@ -1740,24 +1810,30 @@ bool AtkinMorain(mpz_t& theN)
       do
       {
         // Step 4b: ObtainCurveParameters will attempt to obtain the curve
-        // parameters a and b for an elliptic curve that would have order m if n
-        // is indeed prime.
+        // parameters a and b for an elliptic curve that would have order m if
+        // N is indeed prime.
 
-        // Loop through this curves valid a and b values (k iterates over them)
+        // Loop through each curves a and b values (k iterates over them)
         unsigned int k = 0;
         while(!anDone && ObtainCurveParameters(&a, &b, n, gD[anIndexD], g, k))
         {
-          //gmp_printf("Step 4: a=%Zd, b=%Zd\n", a, b);
+          if(gDebug)
+          {
+            gmp_printf("Step 4: a=%Zd, b=%Zd\n", a, b);
+          }
 
           // Step 5: ChoosePoint will try and find a point (x,y) on the curve
           // using the a and b values provided from above.
           anDone = ChoosePoint(&P,n,a,b);
-          //gmp_printf("Step 5: P(%Zd,%Zd)\n", P.x, P.y);
+
+          if(gDebug)
+          {
+            gmp_printf("Step 5: P(%Zd,%Zd)\n", P.x, P.y);
+          }
 
           // Did we find that N is composite while choosing a point?
           if(anDone)
           {
-            //printf("ChoosePoint returned true!\n");
             // N is composite
             anResult = false;
 
@@ -1773,7 +1849,6 @@ bool AtkinMorain(mpz_t& theN)
           // Did EvaluatePoint determine N was composite?
           if(anTest < 0)
           {
-            //printf("EvaluatePoint returned < 0!\n");
             // N is composite
             anResult = false;
 
@@ -1789,16 +1864,21 @@ bool AtkinMorain(mpz_t& theN)
             // N is prime if q can be proven prime
             anResult = true;
 
-            // Print certificate information
-            gmp_printf("n[%d]=%Zd\n", anIterations++, n);
-            gmp_printf("d=%Zd\n", gD[anIndexD]);
-            gmp_printf("u=%Zd\n", u);
-            gmp_printf("v=%Zd\n", v);
-            gmp_printf("m=%Zd q=%Zd\n", m, q);
-            gmp_printf("a=%Zd b=%Zd\n", a, b);
-            gmp_printf("P(%Zd,%Zd)\n", P.x, P.y);
-            gmp_printf("U(%Zd,%Zd)\n", U.x, U.y);
-            gmp_printf("V(%Zd,%Zd)\n", V.x, V.y);
+            if(gCertificate)
+            {
+              // Print certificate information
+              gmp_printf("n[%d]=%Zd\n", anIterations++, n);
+              gmp_printf("d=%Zd\n", gD[anIndexD]);
+              gmp_printf("u=%Zd\n", u);
+              gmp_printf("v=%Zd\n", v);
+              gmp_printf("m=%Zd\n", m);
+              gmp_printf("q=%Zd\n", q);
+              gmp_printf("a=%Zd\n", a);
+              gmp_printf("b=%Zd\n", b);
+              gmp_printf("P(%Zd,%Zd)\n", P.x, P.y);
+              gmp_printf("U(%Zd,%Zd)\n", U.x, U.y);
+              gmp_printf("V(%Zd,%Zd)\n", V.x, V.y);
+            }
 
             // Set n = q and start over
             mpz_set(n, q);
@@ -1812,37 +1892,58 @@ bool AtkinMorain(mpz_t& theN)
             // Exit the points loop
             points = MAX_POINTS;
 
+            // TODO: If n < SOME_LIMIT use another algorithm like AKS to
+            // prove that n is prime instead of iterating again. Be sure
+            // to set anDone = true here if you do this.
+
             // Exit the ObtainCurveParameters loop
             break;
           }
           // Does EvaluatePoint want us to try another point?
           else
           {
-            // Try another a, b, and P
+            // Try another a and b value
           }
 
           // Increment our k value
           k++;
         } // while(!anDone && ObtainCurveParameters(&a,&b,...))
 
-        // Increment points for every k (a and b) tested
+        // Try another point P, keep track of the number of points we
+        // have tried (each iteration above adds k points (some curves
+        // allow k = 6, k = 4, or k = 2, see ObtainCurveParameters.
         points += k;
       } while(!anDone && points < MAX_POINTS);
     } // while(!anDone && anIndexD+1 < MAX_DISCRIMINANTS)
 
-    // Increment Bmax by 10 and try everything all over again!
+    // Increment Bmax value by 10 which is used by LenstraECM to try and
+    // factor m into q.  If we go through all of our discriminants it could
+    // be that we didn't try hard enough in the FindFactors step to obtain a
+    // suitable q value from m, so this will make us try harder before we
+    // just give up entirely.
     Bmax *= 10;
   } while(!anDone && Bmax < MAX_LENSTRA_B1);
 
-  // If we were on track to prove N is prime but ran out of discriminants, then use AKS to prove the
-  // last N (q) value as prime
+  // If we were on track to prove N is prime but ran out of discriminants,
+  // then use AKS to prove the current n value as prime. You could replace
+  // this with a different algorithm if you wanted to, or implement algorithm
+  // (7.5.9) in the ObtainCurveParameters method to allow for more
+  // discriminants to try above.
   if(false == anDone && true == anResult &&
     (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
   {
-    printf("Atkin-Morain proof incomplete! Running AKS...\n");
+    if(gDebug)
+    {
+      printf("Atkin-Morain proof incomplete! Running AKS...\n");
+    }
+
     int aks_result = aks_is_prime(n);
 
-    gmp_printf("AKS result on %Zd: ", n);
+    if(gDebug)
+    {
+      gmp_printf("AKS result on %Zd: ", n);
+    }
+
     // Did AKS prove n to be composite?
     if(aks_result == 0)
     {
@@ -1872,6 +1973,8 @@ bool AtkinMorain(mpz_t& theN)
 
 int main(int argc, char* argv[])
 {
+  bool anShowUsage = false;
+  bool anUnitTest = false;
   mpz_t anNumber;  // Number to be tested for Primality
 
   // Initialize our random generator first
@@ -1883,8 +1986,50 @@ int main(int argc, char* argv[])
   // Initialize our fixed list of discriminants
   InitDiscriminants();
 
-  // TESTTESTTEST
-  if(0)
+
+  // Parse command line options
+  if(argc > 1)
+  {
+    for(unsigned int i = 0; i < argc; i++)
+    {
+      // Print debug information?
+      if(argv[i][1]=='d' || argv[i][1]=='D')
+      {
+        gDebug = true;
+      }
+      // Print ECPP certificate?
+      else if(argv[i][1]=='c' || argv[i][1]=='C')
+      {
+        gCertificate = true;
+      }
+      // UnitTest mode enabled?
+      else if(argv[i][1]=='t' || argv[i][1]=='T')
+      {
+        anUnitTest = true;
+      }
+      else
+      {
+        anShowUsage = true;
+      }
+    }
+  }
+
+  // Show usage and exit?
+  if(anShowUsage)
+  {
+    printf("Usage: %s options [ < inputfile ]\n", argv[0]);
+    printf(" -h  Display this usage\n");
+    printf(" -?  Display this usage\n");
+    printf(" -d  Print debug information\n");
+    printf(" -c  Print ECPP certificate\n");
+    printf(" -t  Perform Unit Test of every prime starting with 1000003\n");
+    printf("The program waits until a number is entered or you can enter 0 ");
+    printf("to exit.\nIf certificate and debug are not enabled then the ");
+    printf("program will\nonly output 0 for composite numbers and 1 for ");
+    printf("prime numbers.\n");
+  }
+  // Unit Test mode?
+  else if(anUnitTest)
   {
     // Initialize our number
     mpz_init_set_ui(anNumber, 1000003);
@@ -1897,29 +2042,59 @@ int main(int argc, char* argv[])
       }
       else
       {
-        //gmp_printf("PASS [%Zd]\n", anNumber);
+        if(gDebug)
+        {
+          gmp_printf("PASS [%Zd]\n", anNumber);
+        }
       }
 
+      // Proceed to the next prime number
       mpz_nextprime(anNumber, anNumber);
     } while(true);
   }
+  // Perform normal operation
   else
   {
     // Initialize our number
     mpz_init(anNumber);
 
-    // Get the number to test
-    gmp_scanf("%Zd", &anNumber);
+    // Loop through each number in stdin
+    while(!feof(stdin))
+    {
+      // Get the number to test
+      gmp_scanf("%Zd", &anNumber);
 
-    // Use Atkin-Morain to determine if the number is prime
-    if(!AtkinMorain(anNumber))
-    {
-      printf("composite\n");
-    }
-    else
-    {
-      printf("proven prime\n");
-    }
+      // Does the user want to exit the program?
+      if(mpz_cmp_ui(anNumber,0) == 0)
+      {
+        // Exit the input while loop and end the program
+        break;
+      }
+
+      // Use Atkin-Morain to determine if the number is prime
+      if(!AtkinMorain(anNumber))
+      {
+        if(gDebug || gCertificate)
+        {
+          printf("composite\n");
+        }
+        else
+        {
+          printf("0\n");
+        }
+      }
+      else
+      {
+        if(gDebug || gCertificate)
+        {
+          printf("proven prime\n");
+        }
+        else
+        {
+          printf("1\n");
+        }
+      }
+    } //while(!feof(stdin))
   }
 
   // Clear the number before exiting the program
