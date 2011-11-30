@@ -893,7 +893,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
 
   // Step 1: Make sure theQ is not probably prime and >= theN
   // If theQ >= theN and is prime then stop now and try another curve
-  if(miller_rabin_is_prime_k(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
+  if(mpz_probab_prime_p(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
     return false;
 
   // Step 2: Perform a simple sieve of the smaller primes starting with 2
@@ -2007,17 +2007,11 @@ bool AtkinMorain(mpz_t& theN)
       printf("Atkin-Morain proof incomplete! Running AKS...\n");
     }
 
-    int aks_result = aks_is_prime(n);
+    anResult = aks_is_prime(n);
 
     if(gDebug)
     {
       gmp_printf("AKS result on %Zd: ", n);
-    }
-
-    // Did AKS prove n to be composite?
-    if(aks_result == 0)
-    {
-      anResult = false;
     }
   }
 
