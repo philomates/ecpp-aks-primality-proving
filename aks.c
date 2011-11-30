@@ -106,7 +106,7 @@ void compute_upper_limit(mpz_t rop, mpz_t r, mpz_t n) {
   mpz_init(logn);
 
   totient(tot, r);
-  gmp_printf("tot=%Zd\n", tot);
+  //gmp_printf("tot=%Zd\n", tot);
   mpz_sqrt(tot, tot);
 
   compute_logn(logn, n);
@@ -210,9 +210,9 @@ int check_polys(mpz_t r, mpz_t n) {
   mpz_init(lim);
 
   int status = PRIME;
-  gmp_printf("computing upper limit\n");
+  //gmp_printf("computing upper limit\n");
   compute_upper_limit(lim, r, n);
-  gmp_printf("lim=%Zd\n", lim);
+  //gmp_printf("lim=%Zd\n", lim);
   for (mpz_set_ui(a, 1); mpz_cmp(a, lim) <= 0; mpz_add_ui(a, a, 1)) {
     if (!check_poly(n, a, r)) {
       status = COMPOSITE;
@@ -243,21 +243,21 @@ int aks_is_prime(mpz_t n) {
   mpz_init(r);
   find_smallest_r(r, n);
 
-  gmp_printf("r=%Zd\n", r);
+  //gmp_printf("r=%Zd\n", r);
 
   if (check_a_exists(n, r)) {
     mpz_clear(r);
     return COMPOSITE;
   }
 
-  gmp_printf("a does not exist\n");
+  //gmp_printf("a does not exist\n");
 
   if (mpz_cmp(n, r) <= 0) {
     mpz_clear(r);
     return PRIME;
   }
 
-  gmp_printf("checking polynomial equation\n");
+  //gmp_printf("checking polynomial equation\n");
 
   if (check_polys(r, n)) {
     mpz_clear(r);
