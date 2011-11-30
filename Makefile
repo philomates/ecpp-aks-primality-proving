@@ -24,10 +24,10 @@ gprime: gprime.c miller-rabin.o
 
 # libs
 aks.o: aks.c aks.h
-	$(CC) $(INCLUDE) $? -c $(CC_LIBS)
+	$(CC) $(INCLUDE) $? -c
 
 miller-rabin.o: miller-rabin.c miller-rabin.c
-	$(CC) $(INCLUDE) $? -c $(CC_LIBS)
+	$(CC) $(INCLUDE) $? -c
 
 # reference implementation
 atkin: atkin237.cpp
