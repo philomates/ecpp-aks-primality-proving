@@ -6,10 +6,10 @@ INCLUDE=-I/opt/local/include -O3
 CC_LIBS=-L/opt/local/lib -lgmp -lmpfr
 CXX_LIBS=-L/opt/local/lib -lgmpxx -lgmp
 
-all: ecpp atkin aks miller-rabin gprime
+all: run atkin aks miller-rabin gprime
 
 # primality tests
-ecpp: ecpp.cpp aks.o miller-rabin.o
+run: ecpp.cpp aks.o miller-rabin.o
 	$(CXX) $(INCLUDE) $? -o run $(CC_LIBS)
 
 miller-rabin:  miller-rabin-driver.c miller-rabin.o
