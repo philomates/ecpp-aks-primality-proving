@@ -1924,12 +1924,11 @@ bool AtkinMorain(mpz_t& theN)
     Bmax *= 10;
   } while(!anDone && Bmax < MAX_LENSTRA_B1);
 
-  // If we were on track to prove N is prime but ran out of discriminants,
-  // then use AKS to prove the current n value as prime. You could replace
-  // this with a different algorithm if you wanted to, or implement algorithm
-  // (7.5.9) in the ObtainCurveParameters method to allow for more
-  // discriminants to try above.
-  if(false == anDone && true == anResult &&
+  // If we ran out of discriminants to prove N is prime then use AKS to prove
+  // N is prime. You could replace this with a different algorithm or
+  // implement algorithm (7.5.9) in the ObtainCurveParameters method to allow
+  // for more discriminants to try above.
+  if(false == anDone && 
     (Bmax >= MAX_LENSTRA_B1 || anIndexD+1 == MAX_DISCRIMINANTS))
   {
     if(gDebug)
@@ -1990,7 +1989,7 @@ int main(int argc, char* argv[])
   // Parse command line options
   if(argc > 1)
   {
-    for(unsigned int i = 0; i < argc; i++)
+    for(unsigned int i = 1; i < argc; i++)
     {
       // Print debug information?
       if(argv[i][1]=='d' || argv[i][1]=='D')
