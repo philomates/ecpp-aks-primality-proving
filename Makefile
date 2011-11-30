@@ -10,7 +10,7 @@ all: ecpp atkin aks miller-rabin gprime
 
 # primality tests
 ecpp: ecpp.cpp aks.o miller-rabin.o
-	$(CC) $(INCLUDE) $? -o run $(CC_LIBS)
+	$(CXX) $(INCLUDE) $? -o run $(CC_LIBS)
 
 miller-rabin:  miller-rabin-driver.c miller-rabin.o
 	$(CC) $(INCLUDE) $? -o miller-rabin $(CC_LIBS)
