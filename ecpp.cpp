@@ -2093,10 +2093,9 @@ int main(int argc, char* argv[])
     printf(" -d  Print debug information\n");
     printf(" -c  Print ECPP certificate\n");
     printf(" -t  Perform Unit Test of every prime starting with 4294967279\n");
-    printf("The program waits until a number is entered or you can enter 0 ");
-    printf("to exit.\nIf certificate and debug are not enabled then the ");
-    printf("program will\nonly output 0 for composite numbers and 1 for ");
-    printf("prime numbers.\n");
+    printf("The program waits until a number is entered or you can enter 0 to exit.\n");
+    printf("If certificate and debug are not enabled then the program will only output a\n");
+    printf("0 for composite numbers and 1 for prime numbers.\n");
   }
   // Unit Test mode?
   else if(anUnitTest)
