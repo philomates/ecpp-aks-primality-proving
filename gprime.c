@@ -3,8 +3,8 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
-#define TRUE 1
 #define FALSE 0
+#define TRUE 1
 
 int main(int argc, char** argv) {
   if (argc < 3) {
@@ -12,9 +12,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int generate_non_prime = FALSE;
-  if (argc > 4 && strcmp(argv[3], "-n")) {
-    generate_non_prime = TRUE;
+  int generate_prime = TRUE;
+  if (argc > 3 && strcmp(argv[3], "-n") == 0) {
+    generate_prime = FALSE;
   } 
 
   gmp_randstate_t state;
@@ -39,8 +39,8 @@ int main(int argc, char** argv) {
   for (mpz_set_ui(count, 0); mpz_cmp(count, max) < 0; mpz_add_ui(count, count, 1)) {
     mpz_urandomm(n, state, max);
     mpz_add(n, n, min);
-    is_prime = miller_rabin_is_prime(n);
-    if ((!is_prime && generate_non_prime) || (is_prime && !generate_non_prime)) {
+    is_prime = miller_rabin_is_prime(n, DEFAULT_K);
+    if ((is_prime && generate_prime) || (!is_prime && !generate_prime)) {
       break;
     }
     else {

@@ -1,11 +1,13 @@
 #include "miller-rabin.h"
 #include <gmp.h>
 
-#define K 64
-
 #define COMPOSITE 0
 #define PRIME 1
-#define UNDECIDED 2
+#define DEFINITELY_PRIME 2
+#define UNDECIDED 3
+
+#define DEFINITELY_PRIME_LIMIT 1000000
+#define DEFINITELY_RRIME_LIMIT_SQRT 1000
 
 void factor_powers_of_2 (mpz_t s, mpz_t d, const mpz_t n) {
   mpz_set_ui(s, 0);
@@ -16,18 +18,34 @@ void factor_powers_of_2 (mpz_t s, mpz_t d, const mpz_t n) {
   }
 }
 
-int miller_rabin_is_prime(const mpz_t n) {
-  return miller_rabin_is_prime_k(n, K);
+int is_definitely_prime(const mpz_t n) {
+  if (mpz_cmp_ui(n, DEFINITELY_PRIME_LIMIT) < 0) {
+    mpz_t i;
+    mpz_init(i);
+    for (mpz_set_ui(i, 2); mpz_cmp_ui(i, DEFINITELY_RRIME_LIMIT_SQRT) <= 0; mpz_add_ui(i, i, 1)) {
+      if (mpz_divisible_p(n, i)) {
+        return COMPOSITE;
+      }
+    }
+    mpz_clear(i);
+    return DEFINITELY_PRIME;
+  }
+  return UNDECIDED;
 }
 
-int miller_rabin_is_prime_k(const mpz_t n, unsigned int k) {
+
+int miller_rabin_is_prime(const mpz_t n, unsigned int k) {
   int retval, i;
   mpz_t s, d, a, x, r, n_minus_one, n_minus_four;
 
   if (mpz_cmp_ui(n, 2) == 0 || mpz_cmp_ui(n, 3) == 0)
-    return PRIME;
+    return DEFINITELY_PRIME;
   if (mpz_cmp_ui(n, 1) <= 0 || mpz_divisible_ui_p(n, 2))
     return COMPOSITE;
+  
+  retval = is_definitely_prime(n);
+  if (retval == DEFINITELY_PRIME || retval == COMPOSITE)
+    return retval; 
 
   gmp_randstate_t state;
   gmp_randinit_default(state);

@@ -26,7 +26,7 @@ gprime: gprime.c miller-rabin.o
 aks.o: aks.c aks.h
 	$(CC) $(INCLUDE) $? -c
 
-miller-rabin.o: miller-rabin.c miller-rabin.c
+miller-rabin.o: miller-rabin.c miller-rabin.h
 	$(CC) $(INCLUDE) $? -c
 
 # reference implementation
@@ -35,5 +35,5 @@ atkin: atkin237.cpp
 
 clean:
 	@echo Cleaning Primes Project
-	rm -f *.o run atkin aks miller-rabin gprime
+	rm -f *.o *.gch run atkin aks miller-rabin gprime
 
