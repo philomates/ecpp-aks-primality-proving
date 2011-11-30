@@ -1,22 +1,30 @@
 /**
- * @author Ryan Lindeman
- * @class  CS6150
+ * @author RyanLindeman@gmail.com
  * @description Implementation of the Atkin-Morain primality test using
- * Elliptic curve primality proving (ECPP). Many of the algorithms used
- * by this program were described in the freely available book titled
- * Prime Numbers - A Computational Perspective written by
- * Richard Crandall and Carl Pomerance.  Many thanks goes out to these
- * individuals without whose book this program would not be possible.
+ * Elliptic curve primality proving (ECPP). Many of the algorithms used by
+ * this program were described in the freely available book titled "Prime
+ * Numbers - A Computational Perspective" written by Richard Crandall and Carl
+ * Pomerance.  Many thanks goes out to these individuals for writing this
+ * book and allowing it to be publicly distributed.  Without this book this
+ * program would not be possible.
+ *
+ * I don't claim that this program is perfect, but it seems to perform well
+ * and is hopefully commented sufficiently to help the reader understand how
+ * to implement the Atkin-Morain ECPP algorithm in practice. Please don't
+ * hesitate to contact me with any bugs you may find so this program can be
+ * improved. It was written for my Advanced Algorithms (CS 6150) class in
+ * the Fall 2011.
  *
  * History
  * @date 20111029 - Initial release
  */
 
-#include <time.h>
+#include <assert.h>
+#include <gmp.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <gmp.h>
-#include <assert.h>
+#include <time.h>
 
 extern "C" {
   #include "aks.h"
@@ -31,6 +39,7 @@ const unsigned int MIN_LENSTRA_B1 = 1000; ///< Minimum primes for LenstraECM
 const unsigned int AVG_LENSTRA_B1 = 2001; ///< Upper limit for LenstraECM
 const unsigned int MAX_LENSTRA_B1 = 2000000000;  ///< Maximum for ECPP
 const unsigned int MAX_LENSTRA_CURVES = 20;  ///< Number of curves to use
+const unsigned int SIEVE_TEST_CUTOFF = UINT_MAX;  ///< Cutoff for sieve test
 
 // Global Variables
 gmp_randstate_t gRandomState;  ///< Holds random generator state and algorithm type
@@ -1674,6 +1683,54 @@ int EvaluatePoint(Point* theU, Point* theV, Point& P, mpz_t& theN, mpz_t& theM,
 }
 
 /**
+ * SieveTest will check every prime from 2 to sqrt(n) to prove that n is
+ * prime. This is only called if n < SIEVE_TEST_CUTOFF. Our Atkin-Morain
+ * implementation does poorly with very small values of n so this test is
+ * necessary to compensate for this issue.
+ */
+bool SieveTest(mpz_t& theN)
+{
+  bool anResult = true;  // True if theN is proven prime, false otherwise
+  mpz_t prime;  ///< Prime number to test
+  mpz_t t;  ///< t = sqrt(n) which is when we can safely stop our test
+
+  // Initialize our values
+  mpz_init_set_ui(prime, 2);
+  mpz_init(t);
+
+  // Compute the square root of n
+  SquareMod(&t, theN, theN);
+
+  // Perform the seive test as long as prime < t
+  while(mpz_cmp(prime, t) <= 0)
+  {
+    if(mpz_divisible_p(theN, prime))
+    {
+      if(gDebug)
+      {
+        gmp_printf("1 factor = %Zd\n", prime);
+      }
+
+      // We found that n is not prime
+      anResult = false;
+
+      // exit the sieve test, we know n is not prime
+      break;
+    }
+
+    // Try the next prime number
+    mpz_nextprime(prime, prime);
+  }
+
+  // Clear our values used above
+  mpz_clear(t);
+  mpz_clear(prime);
+
+  // Return true if theN was proven prime, false otherwise
+  return anResult;
+}
+
+/**
  * AtkinMorain implements algorithm (7.6.3) which is the original Atkin-Morain
  * ECPP algorithm used for proving N is prime. It calls various functions
  * above to perform the algorithm.
@@ -1720,11 +1777,6 @@ bool AtkinMorain(mpz_t& theN)
   // Loop through incrementally higher Bmax values if discriminant loop fails
   do
   {
-    if(gDebug)
-    {
-      printf("Bmax=%lu\n", Bmax);
-    }
-
     // Reset our discriminant index value
     anIndexD = 0;
 
@@ -1766,6 +1818,19 @@ bool AtkinMorain(mpz_t& theN)
         // Exit the discriminant loop
         break;
       }
+      // Should we perform a sieve test instead?
+      else if(mpz_cmp_ui(n, SIEVE_TEST_CUTOFF) <= 0)
+      {
+        // Use sieve test to prove n is prime
+        anResult = SieveTest(n);
+
+        // We are done
+        anDone = true;
+        
+        // Exit the discriminant loop
+        break;
+      }
+      // Otherwise we should just continue with the Atkin-Morain algorithm
       else
       {
         // Continue with Atkin-Morain algorithm to prove n is prime or
@@ -1922,6 +1987,12 @@ bool AtkinMorain(mpz_t& theN)
     // suitable q value from m, so this will make us try harder before we
     // just give up entirely.
     Bmax *= 10;
+
+    if(!anDone && gDebug)
+    {
+      printf("Bmax increased to %lu\n", Bmax);
+    }
+
   } while(!anDone && Bmax < MAX_LENSTRA_B1);
 
   // If we ran out of discriminants to prove N is prime then use AKS to prove
@@ -2021,7 +2092,7 @@ int main(int argc, char* argv[])
     printf(" -?  Display this usage\n");
     printf(" -d  Print debug information\n");
     printf(" -c  Print ECPP certificate\n");
-    printf(" -t  Perform Unit Test of every prime starting with 1000003\n");
+    printf(" -t  Perform Unit Test of every prime starting with 4294967279\n");
     printf("The program waits until a number is entered or you can enter 0 ");
     printf("to exit.\nIf certificate and debug are not enabled then the ");
     printf("program will\nonly output 0 for composite numbers and 1 for ");
@@ -2030,8 +2101,8 @@ int main(int argc, char* argv[])
   // Unit Test mode?
   else if(anUnitTest)
   {
-    // Initialize our number
-    mpz_init_set_ui(anNumber, 1000003);
+    // Initialize our number to a prime number just below SIEVE_TEST_CUTOFF
+    mpz_init_set_ui(anNumber, 4294967279U);
 
     do
     {
