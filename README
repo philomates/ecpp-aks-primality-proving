@@ -1,0 +1,55 @@
+Group: uCombinator
+Members: Ryan Lindeman, Steven Lyde, Phillip Mates
+Class: CS 6150
+
+
+Compile instructions:
+Type the following in a CADE lab terminal window to compile the program.
+cd program
+make
+OR
+cd program
+g++ aks.cpp ecpp.cpp miller-rabin.cpp -o run -lgmp -lmpfr
+g++ aks.cpp aks-driver.cpp -o aks -lgmp -lmpfr
+g++ miller-rabin.cpp miller-rabin.cpp -o miller-rabin -lgmp -lmpfr
+g++ miller-rabin.cpp gprime.cpp -o gprime -lgmp -lmpfr
+
+
+Run instructions:
+There are several programs provided.  The primary one is compiled as "run". For
+program usage information type the following in a CADE lab terminal window:
+./program/run -?
+
+You can also run our AKS and Miller-Rabin implementations separately as shown:
+./program/aks
+./program/miller-rabin
+
+The Miller-Rabin outputs a 0 for composite numbers, a 1 for probably prime
+numbers and a 2 for proven prime numbers.
+
+There is also the "gprime" program that can generate prime numbers of arbitrary
+size that uses the Miller-Rabbin implementation.
+
+The "run" program is capable of printing certificates as shown:
+./program/run -c < file-with-one-number-per-line
+
+The "run" program has a self-test mode that just does every prime number:
+./program/run -t
+
+The "run" program can be started in an interactive mode, but you must enter 0
+as the number to exit the program when in interactive mode. 
+./program/run
+
+For additional information, see the usage page for the "run" program or the
+Background information below.
+
+
+Background:
+The "run" program is a combination of multiple algorithms: AKS, ECPP, and 
+Miller-Rabin. The primary programs are Miller-Rabin and ECPP with a fallback
+option to AKS. The program has multiple modes of operation as mentioned above.
+If the ECPP algorithm fails to find the number prime it will run the AKS
+algorithm to finish the job. Running times for decimal digit numbers of 170 or
+less typically take under 10 minutes with a few exceptions. The program should
+be able to compute numbers of any size reasonably quickly. Smaller numbers tend
+to run the AKS algorithm more frequently than larger numbers.
