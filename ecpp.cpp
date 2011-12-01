@@ -2118,14 +2118,14 @@ int main(int argc, char* argv[])
       // Show prompt if not in quiet mode (default is quiet mode)
       if(gDebug || gCertificate)
       {
-        printf("Number or 0 to quit?\n");
+        printf("Number or control-d to quit?\n");
       }
 
       // Get the number to test
       gmp_scanf("%Zd", &anNumber);
 
       // Does the user want to exit the program?
-      if(feof(stdin) || mpz_cmp_ui(anNumber,0) == 0)
+      if(feof(stdin))
       {
         // Exit the input while loop and end the program
         break;
