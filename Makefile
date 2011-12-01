@@ -25,9 +25,9 @@ aks.o: aks.cpp aks.h
 miller-rabin.o: miller-rabin.cpp miller-rabin.h
 	$(CXX) $(INCLUDE) $^ -c
 
-tarball:
+tarball: run
 	mkdir program
-	cp README Makefile *.cpp *.h program
+	cp Makefile *.cpp *.h run program
 	tar czvf primes.tgz README program
 	rm -rf program
 
