@@ -2,7 +2,7 @@ CXX=g++
 INCLUDE=-I/opt/local/include -O3
 CXX_LIBS=-L/opt/local/lib -lgmpxx -lmpfr -lgmp
 
-all: run atkin aks miller-rabin gprime
+all: run aks miller-rabin gprime
 
 # primality tests
 run: ecpp.cpp aks.o miller-rabin.o
@@ -25,11 +25,13 @@ aks.o: aks.cpp aks.h
 miller-rabin.o: miller-rabin.cpp miller-rabin.h
 	$(CXX) $(INCLUDE) $^ -c
 
-# reference implementation
-atkin: atkin237.cpp
-	$(CXX) $(INCLUDE) $^ -o atkin $(CXX_LIBS)
+tarball:
+	mkdir program
+	cp README Makefile *.cpp *.h program
+	tar czvf primes.tgz README program
+	rm -rf program
 
 clean:
 	@echo Cleaning Primes Project
-	rm -f *.o *.gch run atkin aks miller-rabin gprime
+	rm -f *.o *.gch run aks miller-rabin gprime
 

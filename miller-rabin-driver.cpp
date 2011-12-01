@@ -20,8 +20,9 @@ int main (int argc, char** argv) {
 
   while (!feof(stdin)) {
     gmp_scanf("%Zd", &n);
-    if(feof(stdin))
+    if(feof(stdin)) {
       break;
+    }
     int prime = use_gmp_solution ? mpz_probab_prime_p(n, DEFAULT_K) : miller_rabin_is_prime(n, DEFAULT_K);
     gmp_printf("%d\n", prime);
   }

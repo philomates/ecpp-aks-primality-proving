@@ -1,28 +1,27 @@
-Group: uCombinator
+Group: ucombinator
 Members: Ryan Lindeman, Steven Lyde, Phillip Mates
 Class: CS 6150
 
 
-Compile instructions:
+Note that an ECPP certificate will be displayed if the -c option is used.
+
+
+Compile Instructions:
 Type the following in a CADE lab terminal window to compile the program.
 cd program
 make
-OR
-cd program
-g++ aks.cpp ecpp.cpp miller-rabin.cpp -o run -lgmp -lmpfr
-g++ aks.cpp aks-driver.cpp -o aks -lgmp -lmpfr
-g++ miller-rabin.cpp miller-rabin.cpp -o miller-rabin -lgmp -lmpfr
-g++ miller-rabin.cpp gprime.cpp -o gprime -lgmp -lmpfr
 
 
-Run instructions:
+Run Instructions:
 There are several programs provided.  The primary one is compiled as "run". For
 program usage information type the following in a CADE lab terminal window:
-./program/run -?
+
+./run -?
 
 You can also run our AKS and Miller-Rabin implementations separately as shown:
-./program/aks
-./program/miller-rabin
+
+./aks
+./miller-rabin
 
 The Miller-Rabin outputs a 0 for composite numbers, a 1 for probably prime
 numbers and a 2 for proven prime numbers.
@@ -31,14 +30,15 @@ There is also the "gprime" program that can generate prime numbers of arbitrary
 size that uses the Miller-Rabbin implementation.
 
 The "run" program is capable of printing certificates as shown:
-./program/run -c < file-with-one-number-per-line
 
-The "run" program has a self-test mode that just does every prime number:
-./program/run -t
+./run -c < file-with-one-number-per-line
 
-The "run" program can be started in an interactive mode, but you must enter 0
-as the number to exit the program when in interactive mode. 
-./program/run
+The "run" program has a self-test mode that will continually run testing every
+prime greater than or equal to 4294967279
+
+./run -t
+
+If "run" reads a 0 from standard in the program will exit.
 
 For additional information, see the usage page for the "run" program or the
 Background information below.
@@ -53,3 +53,4 @@ algorithm to finish the job. Running times for decimal digit numbers of 170 or
 less typically take under 10 minutes with a few exceptions. The program should
 be able to compute numbers of any size reasonably quickly. Smaller numbers tend
 to run the AKS algorithm more frequently than larger numbers.
+
