@@ -18,6 +18,8 @@ int main(int argc, char** argv) {
 
   while (!feof(stdin)) {
     gmp_scanf("%Zd", &n);
+    if(feof(stdin))
+      break;
     int prime = aks_is_prime(n);
     gmp_printf("%d\n", prime);
   }
