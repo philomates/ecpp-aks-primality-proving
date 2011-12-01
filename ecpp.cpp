@@ -1391,13 +1391,13 @@ bool LookupCurveParameters(mpz_t* r, mpz_t* s, mpz_t& p, mpz_t& d)
  * for an elliptic curve that would have order m if n is indeed prime. This
  * implements algorithm (7.5.10). If you desire to add more discriminants to
  * this ECPP implementation you will need to add steps 5 through 7 of
- * algorithm (7.5.9) to the method below.
+ * algorithm (7.5.9) to this method as mentioned below.
  */
 bool ObtainCurveParameters(mpz_t* theA, mpz_t* theB, mpz_t& theN,
                            mpz_t& theD, mpz_t& theG, unsigned int theK)
 {
   // theA, theB: curve parameters a and b computed by this method
-  // theG: 'suitable nonresidue of p'
+  // theG: 'suitable nonresidue of theN'
   // theK: k-th iteration of ObtainCurveParameters
   // theN: number we are currently testing for primality
   // theD: current discriminant from global discriminant array gD
@@ -2006,12 +2006,8 @@ bool AtkinMorain(mpz_t& theN)
       printf("Atkin-Morain proof incomplete! Running AKS...\n");
     }
 
-    anResult = aks_is_prime(n);
-
-    if(gDebug)
-    {
-      gmp_printf("AKS result on %Zd: ", n);
-    }
+    // Return the result of AKS
+    anResult = (aks_is_prime(n) == 1);
   }
 
   // Clear our values used above
@@ -2081,12 +2077,12 @@ int main(int argc, char* argv[])
     printf(" -?  Display this usage\n");
     printf(" -d  Print debug information\n");
     printf(" -c  Print ECPP certificate\n");
-    printf(" -t  Perform Unit Test of every prime starting with 4294967279\n");
+    printf(" -t  Perform Self Test which tests every prime from 4294967279 to infinity\n");
     printf("The program waits until a number is entered or you can enter 0 to exit.\n");
     printf("If certificate and debug are not enabled then the program will only output a\n");
     printf("0 for composite numbers and 1 for prime numbers.\n");
   }
-  // Unit Test mode?
+  // Unit Test/Self Test mode?
   else if(anUnitTest)
   {
     // Initialize our number to a prime number just below SIEVE_TEST_CUTOFF
@@ -2119,6 +2115,12 @@ int main(int argc, char* argv[])
     // Loop through each number in stdin
     while(!feof(stdin))
     {
+      // Show prompt if not in quiet mode (default is quiet mode)
+      if(gDebug || gCertificate)
+      {
+        printf("Number or 0 to quit?\n");
+      }
+
       // Get the number to test
       gmp_scanf("%Zd", &anNumber);
 
