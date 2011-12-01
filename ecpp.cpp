@@ -893,7 +893,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
 
   // Step 1: Make sure theQ is not probably prime and >= theN
   // If theQ >= theN and is prime then stop now and try another curve
-  if(mpz_probab_prime_p(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
+  if(miller_rabin_is_prime(*theQ, 10) && mpz_cmp(*theQ, theN) >= 0)
     return false;
 
   // Step 2: Perform a simple sieve of the smaller primes starting with 2
@@ -914,7 +914,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
       return false; // theQ is smaller than theT
 
     // Is theQ prime and smaller than theN now? then return theQ
-    if(mpz_cmp(*theQ, theN) < 0 && mpz_probab_prime_p(*theQ, 10))
+    if(mpz_cmp(*theQ, theN) < 0 && miller_rabin_is_prime(*theQ, 10))
     {
       // Clear our prime value used above and return now
       mpz_clear(prime);
@@ -939,7 +939,7 @@ bool FindFactor(mpz_t* theQ, mpz_t& theN, mpz_t& theM, mpz_t& theT,
       return false; // theQ is smaller than theT
 
     // Have we found something smaller than theM that is also prime?
-    if(mpz_cmp(*theQ, theN) < 0 && mpz_probab_prime_p(*theQ, 10))
+    if(mpz_cmp(*theQ, theN) < 0 && miller_rabin_is_prime(*theQ, 10))
     {
       return true;
     }
@@ -1141,7 +1141,6 @@ void CalculateNonresidue(mpz_t* theG, mpz_t& theN, mpz_t& theD)
   {
     // Pick a random x from 0 to N-1
     mpz_urandomm(*theG, gRandomState, theN);
-    //mpz_set_ui(*theG, 1000021176);
 
     // Eliminate 0 as a possible theG value
     if(mpz_cmp_ui(*theG, 0) == 0)
@@ -1582,7 +1581,6 @@ bool ChoosePoint(struct Point* theP, mpz_t& theN, mpz_t& theA, mpz_t& theB)
     {
       // Pick a random x from 0 to N-1
       mpz_urandomm(theP->x, gRandomState, theN);
-      //mpz_set_ui(theP->x, 946781885);
 
       // Compute Q = x^3
       mpz_powm_ui(Q, theP->x, 3, theN);
@@ -1787,7 +1785,7 @@ bool AtkinMorain(mpz_t& theN)
       // Step 0: Use Miller-Rabin to test if theN is composite since there is
       // no guarrentee that ECPP will successfully find a u and v in Step 1,
       // but Miller-Rabin guarantees to find all composites quickly.
-      int anMillerRabin = mpz_probab_prime_p(n, 10);
+      int anMillerRabin = miller_rabin_is_prime(n, 10);
 
       // Did Miller-Rabin prove n is composite?
       if(0 == anMillerRabin)
