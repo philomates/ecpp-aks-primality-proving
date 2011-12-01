@@ -1772,6 +1772,9 @@ bool AtkinMorain(mpz_t& theN)
   mpz_init(V.y);
   mpz_init(t);
 
+  // Initialize our fixed list of discriminants
+  InitDiscriminants();
+
   // Loop through incrementally higher Bmax values if discriminant loop fails
   do
   {
@@ -2045,10 +2048,6 @@ int main(int argc, char* argv[])
   // Seed our random generator using the clock
   gmp_randseed_ui(gRandomState, time(0));
 
-  // Initialize our fixed list of discriminants
-  InitDiscriminants();
-
-
   // Parse command line options
   if(argc > 1)
   {
@@ -2126,7 +2125,7 @@ int main(int argc, char* argv[])
       gmp_scanf("%Zd", &anNumber);
 
       // Does the user want to exit the program?
-      if(mpz_cmp_ui(anNumber,0) == 0)
+      if(feof(stdin) || mpz_cmp_ui(anNumber,0) == 0)
       {
         // Exit the input while loop and end the program
         break;
