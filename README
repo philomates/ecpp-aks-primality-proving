@@ -38,8 +38,6 @@ prime greater than or equal to 4294967279
 
 ./run -t
 
-If "run" reads a 0 from standard in the program will exit.
-
 For additional information, see the usage page for the "run" program or the
 Background information below.
 
