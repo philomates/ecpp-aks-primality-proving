@@ -7,7 +7,6 @@
 #define UNDECIDED 3
 
 #define DEFINITELY_PRIME_LIMIT 1000000
-#define DEFINITELY_RRIME_LIMIT_SQRT 1000
 
 
 /**
@@ -29,14 +28,17 @@ void factor_powers_of_2 (mpz_t s, mpz_t d, const mpz_t n) {
  */
 int is_definitely_prime(const mpz_t n) {
   if (mpz_cmp_ui(n, DEFINITELY_PRIME_LIMIT) < 0) {
-    mpz_t i;
+    mpz_t i, limit;
     mpz_init(i);
-    for (mpz_set_ui(i, 2); mpz_cmp_ui(i, DEFINITELY_RRIME_LIMIT_SQRT) <= 0; mpz_add_ui(i, i, 1)) {
+    mpz_init(limit);
+    mpz_sqrt(limit, n);
+    for (mpz_set_ui(i, 2); mpz_cmp(i, limit) <= 0; mpz_add_ui(i, i, 1)) {
       if (mpz_divisible_p(n, i)) {
         return COMPOSITE;
       }
     }
     mpz_clear(i);
+    mpz_clear(limit);
     return DEFINITELY_PRIME;
   }
   return UNDECIDED;
