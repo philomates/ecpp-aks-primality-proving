@@ -2078,7 +2078,7 @@ int main(int argc, char* argv[])
     printf(" -d  Print debug information\n");
     printf(" -c  Print ECPP certificate\n");
     printf(" -t  Perform Self Test which tests every prime from 4294967279 to infinity\n");
-    printf("The program waits until a number is entered or you can enter 0 to exit.\n");
+    printf("The program waits until a number is entered (or control-d to exit).\n");
     printf("If certificate and debug are not enabled then the program will only output a\n");
     printf("0 for composite numbers and 1 for prime numbers.\n");
   }
