@@ -36,8 +36,8 @@ The "run" program is capable of printing certificates as shown:
 The "run" program has a self-test mode that just does every prime number:
 ./program/run -t
 
-The "run" program can be started in an interactive mode, but you must enter 0
-as the number to exit the program when in interactive mode. 
+The "run" program can be started in an interactive mode, but you must press
+control-d to exit the program when in interactive mode.
 ./program/run
 
 For additional information, see the usage page for the "run" program or the
