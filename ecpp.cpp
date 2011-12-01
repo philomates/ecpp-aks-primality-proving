@@ -26,10 +26,8 @@
 #include <stdint.h>
 #include <time.h>
 
-extern "C" {
-  #include "aks.h"
-  #include "miller-rabin.h"
-}
+#include "aks.h"
+#include "miller-rabin.h"
 
 // Global constants
 const unsigned int MAX_DISCRIMINANTS = 28;  ///< Number of discriminants

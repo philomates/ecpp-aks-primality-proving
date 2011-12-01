@@ -1,6 +1,7 @@
 #include "miller-rabin.h"
 #include <gmp.h>
 #include <string.h>
+#include <stdio.h>
 
 #define FALSE 0
 #define TRUE 1
@@ -16,9 +17,12 @@ int main (int argc, char** argv) {
 
   mpz_t n;
   mpz_init(n);
-  gmp_scanf("%Zd", &n);
-  int prime = use_gmp_solution ? mpz_probab_prime_p(n, DEFAULT_K) : miller_rabin_is_prime(n, DEFAULT_K);
-  gmp_printf("%d\n", prime);
+
+  while (!feof(stdin)) {
+    gmp_scanf("%Zd", &n);
+    int prime = use_gmp_solution ? mpz_probab_prime_p(n, DEFAULT_K) : miller_rabin_is_prime(n, DEFAULT_K);
+    gmp_printf("%d\n", prime);
+  }
   mpz_clear(n);
   return 0;
 }

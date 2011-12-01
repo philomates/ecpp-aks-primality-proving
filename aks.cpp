@@ -10,7 +10,7 @@
 #define COMPOSITE 0
 #define PRIME 1
 
-int debug = FALSE;
+int aks_debug = 0;
 
 /**
  * Wrapper function to find the log of a number of type mpz_t.
@@ -136,7 +136,7 @@ void compute_upper_limit(mpz_t rop, mpz_t r, mpz_t n) {
   mpz_init(logn);
 
   totient(tot, r);
-  if (debug) gmp_printf("tot=%Zd\n", tot);
+  if (aks_debug) gmp_printf("tot=%Zd\n", tot);
   mpz_sqrt(tot, tot);
 
   compute_logn(logn, n);
@@ -166,7 +166,7 @@ void polymul(mpz_t* rop, mpz_t* op1, unsigned int len1, mpz_t* op2, unsigned int
  */
 mpz_t* init_poly(unsigned int terms) {
   int i;
-  mpz_t* poly = malloc(sizeof(mpz_t) * terms);
+  mpz_t* poly = (mpz_t*) malloc(sizeof(mpz_t) * terms);
   for (i = 0; i < terms; i++) {
     mpz_init(poly[i]);
   }
@@ -255,9 +255,9 @@ int check_polys(mpz_t r, mpz_t n) {
   mpz_init(lim);
 
   int status = PRIME;
-  if (debug) gmp_printf("computing upper limit\n");
+  if (aks_debug) gmp_printf("computing upper limit\n");
   compute_upper_limit(lim, r, n);
-  if (debug) gmp_printf("lim=%Zd\n", lim);
+  if (aks_debug) gmp_printf("lim=%Zd\n", lim);
   // For values of a from 1 to sqrt(totient(r)) * log(n)
   for (mpz_set_ui(a, 1); mpz_cmp(a, lim) <= 0; mpz_add_ui(a, a, 1)) {
     if (!check_poly(n, a, r)) {
@@ -293,7 +293,7 @@ int aks_is_prime(mpz_t n) {
   mpz_init(r);
   find_smallest_r(r, n);
 
-  if (debug) gmp_printf("r=%Zd\n", r);
+  if (aks_debug) gmp_printf("r=%Zd\n", r);
 
   // Step 3: Check if there exists an a <= r such that 1 < (a,n) < n
   if (check_a_exists(n, r)) {
@@ -301,7 +301,7 @@ int aks_is_prime(mpz_t n) {
     return COMPOSITE;
   }
 
-  if (debug) gmp_printf("a does not exist\n");
+  if (aks_debug) gmp_printf("a does not exist\n");
 
   // Step 4: Check if n <= r
   if (mpz_cmp(n, r) <= 0) {
@@ -309,7 +309,7 @@ int aks_is_prime(mpz_t n) {
     return PRIME;
   }
 
-  if (debug) gmp_printf("checking polynomial equation\n");
+  if (aks_debug) gmp_printf("checking polynomial equation\n");
 
   // Step 5
   if (check_polys(r, n)) {

@@ -4,6 +4,7 @@
 
 #include <gmp.h>
 
+extern int aks_debug;
 int aks_is_prime(mpz_t);
 
 #endif // PRIMES_AKS_H_
