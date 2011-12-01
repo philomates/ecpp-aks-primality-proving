@@ -16,7 +16,7 @@ Run Instructions:
 There are several programs provided.  The primary one is compiled as "run". For
 program usage information type the following in a CADE lab terminal window:
 
-./run -?
+./run -h
 
 You can also run our AKS and Miller-Rabin implementations separately as shown:
 
