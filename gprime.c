@@ -6,6 +6,10 @@
 #define FALSE 0
 #define TRUE 1
 
+/**
+ * Returns a number that is extremely likely to be prime.
+ * If the -n option is specified the number will not be prime.
+ */
 int main(int argc, char** argv) {
   if (argc < 3) {
     gmp_printf("usage: gprime min maxi [-n]\n");

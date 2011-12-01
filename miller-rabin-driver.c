@@ -5,6 +5,9 @@
 #define FALSE 0
 #define TRUE 1
 
+/**
+ * If the -gmp option is specied then the GMP implementation is used.
+ */
 int main (int argc, char** argv) {
   int use_gmp_solution = FALSE;
   if (argc > 1 && strcmp(argv[1], "-gmp") == 0) {
