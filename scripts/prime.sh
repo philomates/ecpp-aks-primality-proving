@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ $# != 1 ]]; then
+if [[ $# < 1 ]]; then
   echo "usage: prime.sh digits"
   exit 1
 fi
@@ -18,5 +18,5 @@ for i in $(seq 2 $1); do
   NUM=${NUM}0
 done
 
-$GPRIME $NUM ${NUM}0
+$GPRIME $NUM ${NUM}0 $2
 
