@@ -2,11 +2,14 @@ CXX=g++
 INCLUDE=-I/opt/local/include -O3
 CXX_LIBS=-L/opt/local/lib -lgmpxx -lmpfr -lgmp
 
-all: run aks miller-rabin gprime
+all: run aks miller-rabin gprime hybrid
 
 # primality tests
 run: ecpp.cpp aks.o miller-rabin.o
 	$(CXX) $(INCLUDE) $^ -o run $(CXX_LIBS)
+
+hybrid: ecpp-to-aks.cpp aks.o miller-rabin.o
+	$(CXX) $(INCLUDE) $^ -o hybrid $(CXX_LIBS)
 
 miller-rabin: miller-rabin-driver.cpp miller-rabin.o
 	$(CXX) $(INCLUDE) $^ -o miller-rabin $(CXX_LIBS)
