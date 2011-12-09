@@ -11,7 +11,7 @@ cat $1 | grep Testing | awk '{print $2}' > $$.1
 
 cat $1 | grep real | sed 's/[ms]/ /g' | awk '{print ($2 * 60 + $3)}' > $$.2
 
-for n in $(cat $2); do
+for n in $(cat $$.1); do
   $DIR/digits.py $n >> $$.3
 done
 
