@@ -1,16 +1,12 @@
-Group: ucombinator
+Implementations of ECPP, AKS, and a hybrid of the two
+Final Project for Suresh Venkatasubramanian's Advanced Algorithms (CS 6150) course at Utah
 Members: Ryan Lindeman, Steven Lyde, Phillip Mates
-Class: CS 6150
 
-
-Note that an ECPP certificate will be displayed if the -c option is used.
+For more details please see the corresponding final report: report.pdf
 
 
 Compile Instructions:
-Type the following in a CADE lab terminal window to compile the program.
-cd program
 make
-
 
 Run Instructions:
 There are several programs provided.  The primary one is compiled as "run". For
@@ -43,7 +39,7 @@ Background information below.
 
 
 Background:
-The "run" program is a combination of multiple algorithms: AKS, ECPP, and 
+The "run" program is a combination of multiple algorithms: AKS, ECPP, and
 Miller-Rabin. The primary programs are Miller-Rabin and ECPP with a fallback
 option to AKS. The program has multiple modes of operation as mentioned above.
 If the ECPP algorithm fails to find the number prime it will run the AKS

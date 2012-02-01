@@ -36,5 +36,5 @@ tarball: run
 
 clean:
 	@echo Cleaning Primes Project
-	rm -f *.o *.gch run aks miller-rabin gprime
+	rm -f *.o *.gch run aks miller-rabin gprime hybrid
 
